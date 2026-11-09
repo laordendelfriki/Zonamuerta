@@ -2,7 +2,7 @@
 'use strict';
 const CITYMODE = window.MAP_MODE === 'city';
 const WORLD = CITYMODE ? 1500 : 640, HALF = WORLD / 2, GRID = CITYMODE ? 150 : 160, CELL = WORLD / GRID;
-const SQPOI = t => t === 'city' || t === 'town';
+const SQPOI = t => t === 'city' || t === 'town' || t === 'camp';
 const IS_TOUCH = ('ontouchstart' in window) || matchMedia('(pointer:coarse)').matches;
 // Gestión de color: todos los colores que escribimos están en sRGB y se pasan a lineal para un render realista
 { let depth = 0; for (const k of ['setHex', 'setRGB', 'setHSL', 'setStyle']) { const o = THREE.Color.prototype[k]; THREE.Color.prototype[k] = function () { depth++; try { o.apply(this, arguments); } finally { depth--; } if (depth === 0) this.convertSRGBToLinear(); return this; }; } }
@@ -53,7 +53,8 @@ if (CITYMODE) {
     { name: 'Sant Fost de Campsentelles', x: -520, z: 0, r: 95, type: 'town', sp: 55, n: 1 },
     { name: 'Montcada i Reixac', x: -132, z: -480, r: 110, type: 'town', sp: 55, n: 2 },
     { name: 'Santa Perpètua', x: 440, z: -253, r: 110, type: 'town', sp: 55, n: 2, ind: true },
-    { name: 'Mollet del Vallès', x: 470, z: 121, r: 130, type: 'town', sp: 55, n: 2 }];
+    { name: 'Mollet del Vallès', x: 470, z: 121, r: 130, type: 'town', sp: 55, n: 2 },
+    { name: 'Campamento', x: -330, z: 42, r: 30, type: 'camp' }];
   ROADS = [[0, 163, 0, 377], [-229, 0, -427, 0], [-132, -229, -132, -372], [163, -198, 332, -198], [163, 66, 342, 66]];
 }
 for (const p of POIS) p.h = Math.max(4.5, baseH(p.x, p.z));

@@ -1,6 +1,8 @@
 // ===== Supervivientes (NPC): la gente de La Orden repartida por el mapa =====
 // Misiones, comercio con chapas, se unen a ti, te siguen y forman un campamento.
 const NPC_DEFS = [
+  { id: 'xavi', name: 'Xavi', role: 'El tendero de La Orden', skill: 'trader', trade: 'shop', first: true, where: ['LA ORDEN DEL FRIKI'], o: { sex: 'm', skin: '#dcae8a', hair: '#1c1410', style: 'messy', beard: 'stub', hat: 'cap', hatc: '#1a1c28', top: '#2a3a5a', pants: '#2a2a2e', outfit: 'hoodie', backpack: '#3a3a2a' },
+    quest: { type: 'bring', items: { beans: 3 }, text: 'Aquí no aguantamos ni dos noches. Antes de irnos necesito comida: tráeme 3 latas de judías del Supermercat, que está aquí al lado. Luego te cuento mi plan.' }, hello: '¡Por fin! Pensaba que estaba solo en la tienda con los sobres.' },
   { id: 'sara', name: 'Sara', role: 'Jefa de La Orden · médica', skill: 'medic', where: ['FARMÀCIA'], o: { sex: 'f', skin: '#eac4a8', hair: '#7a4a2a', style: 'ponytail', top: '#a85a6a', pants: '#2a3a5a', outfit: 'hoodie', body: 'normal', age: 1 },
     quest: { type: 'bring', items: { medkit: 1 }, text: 'Con todo esto voy a necesitar un botiquín de verdad… por Olivia. Tráeme uno y me vengo contigo.' }, hello: 'Menos mal que estás vivo. Esto es una locura.' },
   { id: 'cabrera', name: 'Dani Cabrera', role: 'El del súper · comerciante', skill: 'trader', trade: 'food', where: ['SUPERMERCAT'], o: { sex: 'm', skin: '#dcae8a', hair: '#3a2a1e', style: 'short', beard: 'stub', top: '#3a6a3a', pants: '#2a2a2e', outfit: 'shirt', hat: 'cap', hatc: '#3a6a3a' },
@@ -34,6 +36,7 @@ const SKILL_TXT = { medic: '🩹 Cura al grupo y prepara vendas', trader: '🪙 
 const VALUE = { beans: 5, bread: 4, apple: 2, chips: 2, choco: 2, cereal: 4, water: 4, soda: 3, bottle: 1, bandage: 4, medkit: 16, pills: 5, booster: 12, bat: 8, pan: 5, knife: 6, axe: 22, pipe: 6, pistol: 35, shotgun: 60, hammer: 8, plank: 3, nails: 0.3, scrap: 3, ammo9: 1, shells: 2, rag: 1, tape: 4, alcohol: 4, sandwich: 8, club: 6, nailbat: 14, spear: 10, molotov: 8, gas: 12, stick: 1, rope: 3, stone: 0.5, seeds: 1, veg: 3, stew: 10, saxe: 8, shiv: 4, xbow: 30, bolt: 1.5 };
 const val = id => VALUE[id] ?? 2;
 const STOCK = {
+  shop: ['booster', 'booster', 'booster', 'bandage', 'water', 'beans', 'tape', 'rope', 'choco', 'soda'],
   food: ['beans', 'beans', 'bread', 'water', 'water', 'soda', 'cereal', 'choco', 'chips', 'apple'],
   mech: ['gas', 'gas', 'scrap', 'scrap', 'nails', 'tape', 'hammer', 'pipe', 'rope'],
   guns: ['ammo9', 'ammo9', 'shells', 'pistol', 'shotgun', 'knife', 'axe', 'bandage'],
@@ -48,7 +51,7 @@ function findHome(def) {
     if (w === '__station') return [138, -110];
     if (w === '__park') return [40, 168];
     if (w[0] === '@') { const tw = CITY.towns.find(t => t.T.name === w.slice(1)); if (tw) { const rs = CITY.rooms.filter(r => r.sg.town === tw.T.name && r.kind !== 'casa'); const r = rs.length ? rs[Math.floor(rand() * rs.length)] : null; return r ? [(r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2] : [tw.T.x + 6, tw.T.z + 6]; } }
-    const r = CITY.rooms.find(r => r.name === w && !r.sg.town) || CITY.rooms.find(r => r.name === w); if (r) return [(r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2];
+    const r = CITY.rooms.find(r => r.name === w && !r.sg.town) || CITY.rooms.find(r => r.name === w); if (r) return def.first ? [(r.x0 + r.x1) / 2 + (r.x1 - r.x0) * 0.22, (r.z0 + r.z1) / 2 + (r.z1 - r.z0) * 0.22] : [(r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2];
   }
   const sp = pick(CITY.streetPts); return [sp[0], sp[1]];
 }
@@ -92,12 +95,14 @@ function renderTalk() {
     if (n.quest === 0) { body = `<p>«${d.hello}»</p><p class="q">📜 ${q.text}</p>`; btn.push(['accept', 'Aceptar la misión']); }
     else if (n.quest === 1) { body = `<p class="q">📜 ${q.text}</p><p><b>${questProgress(n)}</b></p>`; if (questDone(n)) btn.push(['turnin', '✔ Entregar']); }
     else { body = `<p>«Gracias. Cuando quieras, voy contigo.»</p><p class="sk">${SKILL_TXT[d.skill]}</p>`; btn.push(['join', '🤝 Únete a mí']); }
+  } else if (n.campTalk) {
+    n.campTalk = false; body = `<p>«Escucha: en la carretera de Sant Fost, saliendo de La Llagosta por el oeste, hay un campamento de Protección Civil. Tiene muros, torres y puerta. Ahí podemos montar nuestra base y traer a más gente.»</p><p>«Yo me voy para allá ahora mismo. Te lo he marcado en el mapa con la 🚩. Busca a los demás de La Orden y diles que vengan.»</p><p class="sk">${SKILL_TXT[d.skill]}</p>`;
   } else {
     body = `<p>«${n.state === 'follow' ? '¿A dónde vamos?' : n.state === 'camp' ? 'Aquí en el campamento estoy bien.' : 'Te espero aquí.'}»</p><p class="sk">${SKILL_TXT[d.skill]}</p><p>❤️ ${Math.round(n.hp)}%</p>`;
     if (n.state !== 'follow') btn.push(['follow', '🚶 Sígueme']);
     if (n.state !== 'stay') btn.push(['stay', '✋ Espera aquí']);
-    if (S.camp && n.state !== 'camp') btn.push(['camp', '🚩 Ve al campamento']);
-    if (!S.camp) body += '<p style="opacity:.7;font-size:12px">Construye una 🚩 Bandera del campamento (menú B) para montar un asentamiento.</p>';
+    if (S.camp && S.campKnown && n.state !== 'camp') btn.push(['camp', '🚩 Ve al campamento']);
+    if (!S.camp || !S.campKnown) body += '<p style="opacity:.7;font-size:12px">Habla con Xavi en La Orden del Friki para saber dónde montar el campamento.</p>';
   }
   if (d.trade) btn.push(['trade', '🪙 Comerciar']);
   btn.push(['bye', 'Adiós']);
@@ -111,6 +116,7 @@ function talkAction(a) {
     if (q.type === 'bring') for (const [k, v] of Object.entries(q.items)) takeItems(p, k, v);
     if (q.type === 'fetch') { const it = p.inv.find(i => i.id === 'qitem' && i.who === n.def.id); p.inv.splice(p.inv.indexOf(it), 1); if (n.def.id === 'mario') n.gotGun = true; }
     n.quest = 2; addItem(p, mk('caps', 15 + RI(0, 10))); msg(`✔ ${n.def.name}: ¡gracias! (+chapas)`, 2); sfx('pick', 1);
+    if (n.def.first && S.camp) { S.campKnown = true; n.state = 'camp'; n.stay = new V3(S.camp.x + 2, 0, S.camp.z - 3); n.campTalk = true; msg('🚩 Campamento marcado en el mapa (carretera de Sant Fost, al oeste)', 4); }
   }
   if (a === 'join') { n.state = 'follow'; msg(`🤝 ${n.def.name} se une a tu grupo`, 2); sfx('pick', 1); }
   if (a === 'follow') { n.state = 'follow'; n.stay = null; msg(`${n.def.name} te sigue`, 1.4); }
@@ -177,7 +183,7 @@ function updateNPCs(dt) {
     } else if (n.state === 'stay' || n.state === 'camp') {
       const home = n.stay || n.pos; act = npcFight(n, dt, home, n.state === 'camp' && n.def.skill === 'fighter' ? 22 : 12);
       if (act && act.move) npcMoveTo(n, dt, act.move, 4, 1.0);
-      else if (!act) { if (n.pos.distanceTo(home) > 1.5) { if (n.pos.distanceTo(home) > 60 && n.pos.distanceTo(p.pos) > 40) n.pos.set(home.x, getH(home.x, home.z), home.z); else npcMoveTo(n, dt, home, 3.4, 1.2); } else { n.vel.multiplyScalar(0.85); n.wanderT = (n.wanderT || R(4, 9)) - dt; if (n.wanderT <= 0) { n.wanderT = R(5, 12); n.stay = new V3((S.camp && n.state === 'camp' ? S.camp.x : home.x) + R(-4, 4), 0, (S.camp && n.state === 'camp' ? S.camp.z : home.z) + R(-4, 4)); } } }
+      else if (!act) { if (n.pos.distanceTo(home) > 1.5) { const cs = typeof CITY !== 'undefined' && CITY.campSpot, inCamp = q => cs && q.x > cs.X0 && q.x < cs.X1 && q.z > cs.Z0 && q.z < cs.Z1; const blocked = (inCamp(home) && !inCamp(n.pos) && n.pos.distanceTo(home) < 35) || n.stuckT > 2.2; if ((n.pos.distanceTo(home) > 60 || blocked) && n.pos.distanceTo(p.pos) > 18) { n.pos.set(home.x, getH(home.x, home.z), home.z); n.stuckT = 0; } else npcMoveTo(n, dt, home, 3.4, 1.2); } else { n.vel.multiplyScalar(0.85); n.wanderT = (n.wanderT || R(4, 9)) - dt; if (n.wanderT <= 0) { n.wanderT = R(5, 12); n.stay = new V3((S.camp && n.state === 'camp' ? S.camp.x : home.x) + R(-4, 4), 0, (S.camp && n.state === 'camp' ? S.camp.z : home.z) + R(-4, 4)); } } }
       if (n.state === 'camp') campJob(n, dt);
     } else { // en su refugio
       act = npcFight(n, dt, n.pos, 6); if (act && act.move) npcMoveTo(n, dt, act.move, 3.6, 1.0); else { n.vel.multiplyScalar(0.8); const dd = n.pos.distanceTo(p.pos); if (dd < 7) n.yaw = Math.atan2(-(p.pos.x - n.pos.x), -(p.pos.z - n.pos.z)); }

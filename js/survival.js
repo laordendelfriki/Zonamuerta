@@ -906,7 +906,7 @@ function drawMap(ctx, W, cx, cz, span, big) {
   else if (big) { ctx.font = 'bold 13px Nunito, sans-serif'; ctx.textAlign = 'center'; for (const p of POIS) { ctx.fillStyle = 'rgba(0,0,0,.55)'; const tw = ctx.measureText(p.name).width + 8; ctx.fillRect(X(p.x) - tw / 2, Z(p.z) - 10, tw, 18); ctx.fillStyle = '#fff'; ctx.fillText(p.name, X(p.x), Z(p.z) + 4); } }
   if (S.npcs) for (const n of S.npcs) { if (!n.alive) continue; const x2 = X(n.pos.x), z2 = Z(n.pos.z); if (x2 < -6 || x2 > W + 6 || z2 < -6 || z2 > W + 6) continue; ctx.fillStyle = n.state === 'home' ? (n.quest === 1 ? '#ffd23f' : '#f0f0f0') : '#9be36a'; ctx.beginPath(); ctx.arc(x2, z2, big ? 5 : 3.5, 0, 7); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); if (big) { ctx.font = 'bold 11px Nunito'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(n.def.name, x2, z2 - 8); } }
   for (const g of S.ground) if (g.it.id === 'qitem') { ctx.font = (big ? 18 : 13) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('⭐', X(g.pos.x), Z(g.pos.z) + 5); }
-  if (S.camp) { ctx.font = (big ? 18 : 13) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🚩', X(S.camp.x), Z(S.camp.z) + 5); }
+  if (S.camp && S.campKnown) { ctx.font = (big ? 18 : 13) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🚩', X(S.camp.x), Z(S.camp.z) + 5); }
   ctx.fillStyle = '#4ab0ff'; for (const c of S.cars) if (c.hp > 0) { const cx2 = X(c.pos.x), cz2 = Z(c.pos.z); if (cx2 > -5 && cx2 < W + 5 && cz2 > -5 && cz2 < W + 5) ctx.fillRect(cx2 - 2.5, cz2 - 2.5, 5, 5); }
   for (const z of S.zombies) if (z.alive && z.state === 'chase') { ctx.fillStyle = '#ff4a3a'; ctx.beginPath(); ctx.arc(X(z.pos.x), Z(z.pos.z), 3, 0, 7); ctx.fill(); }
   const p = S.p; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(-p.yaw); ctx.fillStyle = '#9be36a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; const s = 9;
@@ -921,6 +921,7 @@ const BUILD = {
   barricade: { n: 'Barricada', ic: '🪵', cost: { plank: 2, nails: 3 }, w: 2.0, h: 1.15, d: 0.35, hp: 200, mat: 'wood' },
   box: { n: 'Caja de almacenaje', ic: '📦', cost: { plank: 3, nails: 2 }, w: 1.1, h: 0.8, d: 0.7, hp: 140, storage: true, mat: 'wood' },
   floor: { n: 'Suelo de madera', ic: '🟫', cost: { plank: 2, nails: 2 }, w: 2.0, h: 0.08, d: 2.0, hp: 999, floor: true, mat: 'wood' },
+  gate: { n: 'Puerta del campamento', ic: '🚪', cost: {}, w: 4.4, h: 3.0, d: 0.22, hp: 1200, door: true, mat: 'wood', city: true },
   cdoor: { n: 'Puerta', ic: '🚪', cost: {}, w: 1.96, h: 2.55, d: 0.1, hp: 170, door: true, mat: 'wood', city: true },
   bench: { n: 'Banco de trabajo', ic: '🛠️', cost: { plank: 4, nails: 6, scrap: 1 }, w: 1.7, h: 0.95, d: 0.8, hp: 220, mat: 'wood', info: 'desbloquea mejoras y la ballesta' },
   campfire: { n: 'Hoguera', ic: '🔥', cost: { stick: 3, stone: 4 }, w: 1.1, h: 0.35, d: 1.1, hp: 999, floor: true, fire: true, mat: 'wood', info: 'luz, descanso y cocinar' },
@@ -946,6 +947,7 @@ function pieceMesh(type) {
   if (type === 'wall') { for (let k = 0; k < 5; k++) add(d.w, d.h / 5 - 0.03, d.d, 0, d.h / 10 + k * d.h / 5, 0, W, k % 2 ? 0xf0e0d0 : 0xffffff); for (const s of [-1, 1]) add(0.14, d.h, d.d + 0.06, s * (d.w / 2 - 0.07), d.h / 2, 0, W, 0xc8a080); add(d.w, 0.12, d.d + 0.05, 0, d.h * 0.5, 0, W, 0xa08060); }
   if (type === 'metal') { add(d.w, d.h, d.d, 0, d.h / 2, 0, M, 0xffffff); for (const s of [-1, 1]) add(0.1, d.h, d.d + 0.06, s * (d.w / 2 - 0.05), d.h / 2, 0, W, 0x8a6a4a); }
   if (type === 'door') { const leaf = new THREE.Group(); leaf.position.set(-d.w / 2, 0, 0); g.add(leaf); for (let k = 0; k < 4; k++) { const m = new THREE.Mesh(TMs ? colorBox(d.w / 4 - 0.02, d.h, d.d, 0xffffff) : new THREE.BoxGeometry(d.w / 4 - 0.02, d.h, d.d), W); m.position.set(d.w / 8 + k * d.w / 4, d.h / 2, 0); m.castShadow = true; leaf.add(m); } const hb = new THREE.Mesh(TMs ? colorBox(d.w, 0.12, d.d + 0.04, 0xa08060) : new THREE.BoxGeometry(d.w, 0.12, d.d + 0.04), W); hb.position.set(d.w / 2, d.h * 0.5, 0); leaf.add(hb); const kn = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), toon(0xd8c27a, { metalness: 0.7, roughness: 0.3 })); kn.position.set(d.w - 0.15, 1.05, -0.1); leaf.add(kn); g.userData.leaf = leaf; for (const s of [-1, 1]) add(0.12, d.h + 0.15, d.d + 0.08, s * (d.w / 2 + 0.06), (d.h + 0.15) / 2, 0, W, 0x8a6a4a); add(d.w + 0.24, 0.14, d.d + 0.08, 0, d.h + 0.08, 0, W, 0x8a6a4a); }
+  if (type === 'gate') { const leaf = new THREE.Group(); leaf.position.set(-d.w / 2, 0, 0); g.add(leaf); const L = (w, h, dd, x, y, z, mat, col) => { const m = new THREE.Mesh(TMs ? colorBox(w, h, dd, col) : new THREE.BoxGeometry(w, h, dd), mat); m.position.set(x, y, z); leaf.add(m); }; for (let k = 0; k < 11; k++) L(d.w / 11 - 0.02, d.h, d.d, d.w / 22 + k * d.w / 11, d.h / 2, 0, W, k % 2 ? 0xd8c8b0 : 0xc8b8a0); for (const y of [0.5, 1.5, 2.5]) L(d.w, 0.2, 0.04, d.w / 2, y, -d.d / 2 - 0.02, M, 0x6a6a72); const br = new THREE.Mesh(TMs ? colorBox(0.15, 4.6, 0.05, 0x8a6a4a) : new THREE.BoxGeometry(0.15, 4.6, 0.05), W); br.position.set(d.w / 2, d.h / 2, d.d / 2 + 0.03); br.rotation.z = 0.95; leaf.add(br); flattenInto(leaf, W); g.userData.leaf = leaf; }
   if (type === 'cdoor') { const leaf = new THREE.Group(); leaf.position.set(-d.w / 2, 0, 0); g.add(leaf); const shop = g.userData.shop = !!pieceMesh.shop;
     const L = (w, h, dd, x, y, z, mat, col = 0xffffff) => { const m = new THREE.Mesh(TMs ? colorBox(w, h, dd, col) : new THREE.BoxGeometry(w, h, dd), mat); m.position.set(x, y, z); m.castShadow = true; leaf.add(m); return m; };
     if (shop) { const fr = toon(0x3a3c42, { metalness: 0.6, roughness: 0.4 }); L(d.w, 0.12, d.d, d.w / 2, 0.06, 0, fr); L(d.w, 0.12, d.d, d.w / 2, d.h - 0.06, 0, fr); L(0.1, d.h, d.d, 0.05, d.h / 2, 0, fr); L(0.1, d.h, d.d, d.w - 0.05, d.h / 2, 0, fr); L(d.w, 0.08, d.d, d.w / 2, 1.0, 0, fr);
@@ -978,7 +980,7 @@ function addPiece(type, x, z, rot, y, hp, open, items, shop) {
   if (!d.floor) { const a = pieceAABB(type, x, z, rot); pc.box = addBox(a[0], y, a[1], a[2], y + d.h, a[3]); }
   if (d.storage) { pc.cont = { kind: 'storage', name: d.n, pos: new V3(x, y, z), items: items || [], r: 1.4, built: pc, searched: true }; S.conts.push(pc.cont); }
   if (d.door) setDoor(pc, pc.open);
-  if (d.flag) { S.camp = { x, z, pc }; pc.cont.name = 'Almacén del campamento'; }
+  if (d.flag) { S.camp = { x, z, pc }; pc.cont.name = 'Almacén del campamento'; if (S.phase === 'game') S.campKnown = true; }
   S.built.push(pc); return pc;
 }
 function setDoor(pc, open) { pc.open = open; const leaf = pc.mesh.userData.leaf; if (leaf) leaf.rotation.y = open ? -1.5 : 0; if (pc.box) pc.box.y1 = open ? pc.box.y0 : pc.box.y0 + BUILD[pc.type].h; }
@@ -1069,8 +1071,9 @@ $('build').addEventListener('click', e => { const b = e.target.closest('button')
 $('bok').onclick = () => confirmPlace(); $('brot').onclick = () => rotatePlacing(); $('bcan').onclick = () => stopPlacing();
 $('bbuild').onclick = () => { if (S.buildOpen) closeBuildMenu(); else openBuildMenu(); };
 function makeCDoor(d, st, hp) {
+  if (d.gate && st === 'broken') st = 'closed'; if (d.gate && st === 'locked') st = 'closed';
   if (st === 'broken') return { d, broken: true };
-  const pc = addPiece('cdoor', d.x, d.z, d.rot, d.y, hp, st === 'open', null, d.shop); pc.city = true; pc.locked = st === 'locked'; pc.d = d; return pc;
+  const pc = addPiece(d.gate ? 'gate' : 'cdoor', d.x, d.z, d.rot, d.y, hp, st === 'open', null, d.shop); pc.city = true; pc.locked = st === 'locked'; pc.d = d; return pc;
 }
 function sleepBed() {
   const p = S.p; const near = S.zombies.some(z => z.alive && z.pos.distanceTo(p.pos) < 25 && (z.state === 'chase' || z.state === 'hunt'));
@@ -1115,7 +1118,7 @@ function saveSoon() { saveT = Math.min(saveT, 1); }
 function saveGame() {
   const p = S.p; if (!p || !p.alive || S.phase !== 'game') return;
   try {
-    const d = { v: 1, clock: S.clock, kills: S.kills, lhd: S.lastHordeDay || 0, cards: S.cards || 0, zCount: S.zCount, cr: CR, p: { pos: p.pos.toArray(), yaw: p.yaw, hp: p.hp, food: p.food, water: p.water, sta: p.sta, bleed: p.bleed, inv: p.inv, eq: p.inv.indexOf(p.eq) },
+    const d = { v: 1, clock: S.clock, kills: S.kills, lhd: S.lastHordeDay || 0, ck: !!S.campKnown, cards: S.cards || 0, zCount: S.zCount, cr: CR, p: { pos: p.pos.toArray(), yaw: p.yaw, hp: p.hp, food: p.food, water: p.water, sta: p.sta, bleed: p.bleed, inv: p.inv, eq: p.inv.indexOf(p.eq) },
       conts: S.conts.map((c, i) => (!c.built && (c.searched || c.gone)) ? [i, c.items, c.gone ? 1 : 0] : null).filter(Boolean),
       ground: S.ground.map(g => [g.it, +g.pos.x.toFixed(2), +g.pos.y.toFixed(2), +g.pos.z.toFixed(2)]),
       built: S.built.filter(b => !b.city).map(b => [b.type, b.x, b.z, b.y, b.rot, Math.round(b.hp), b.open ? 1 : 0, b.cont ? b.cont.items : null]),
@@ -1326,12 +1329,12 @@ function startGame(sv) {
   S.clock = 0; S.over = false; S.cards = 0;
   fillContainers();
   S.cdoors = [];
-  if (typeof CITY !== 'undefined' && CITY.doors) for (const d of CITY.doors) { const r = rand(); let st = d.spawn ? 'closed' : d.generic ? (r < 0.35 ? 'open' : r < 0.75 ? 'closed' : r < 0.92 ? 'locked' : 'broken') : d.shop ? (r < 0.25 ? 'open' : r < 0.6 ? 'closed' : r < 0.85 ? 'locked' : 'broken') : (r < 0.1 ? 'open' : r < 0.4 ? 'closed' : r < 0.9 ? 'locked' : 'broken'); S.cdoors.push(makeCDoor(d, st)); }
+  if (typeof CITY !== 'undefined' && CITY.doors) for (const d of CITY.doors) { const r = rand(); let st = d.gate ? 'closed' : d.spawn ? 'closed' : d.generic ? (r < 0.35 ? 'open' : r < 0.75 ? 'closed' : r < 0.92 ? 'locked' : 'broken') : d.shop ? (r < 0.25 ? 'open' : r < 0.6 ? 'closed' : r < 0.85 ? 'locked' : 'broken') : (r < 0.1 ? 'open' : r < 0.4 ? 'closed' : r < 0.9 ? 'locked' : 'broken'); S.cdoors.push(makeCDoor(d, st)); }
   if (typeof CITY !== 'undefined' && CITY.matSpots && !sv) { const mats = ['plank', 'plank', 'plank', 'scrap', 'nails', 'plank', 'scrap']; CITY.matSpots.forEach(([x, z], i) => dropGround(i === 0 ? mk('hammer') : mk(mats[i % mats.length], mats[i % mats.length] === 'nails' ? RI(8, 16) : 1), x, z)); }
   for (const [x, z] of LOOT_SPOTS) if (rand() < 0.22) dropGround(rollItem('floor'), x, z);
   if (typeof CITY !== 'undefined') for (let i = 0; i < 40; i++) { const sp = pick(CITY.streetPts); dropGround(rollItem('floor'), sp[0] + R(-3, 3), sp[1] + R(-3, 3)); }
   if (sv) {
-    S.clock = sv.clock; S.kills = sv.kills; S.lastHordeDay = sv.lhd || 0; S.smallHordeT = R(200, 320); S.cards = sv.cards || 0;
+    S.clock = sv.clock; S.kills = sv.kills; S.lastHordeDay = sv.lhd || 0; S.campKnown = !!sv.ck; S.smallHordeT = R(200, 320); S.cards = sv.cards || 0;
     const P = sv.p, p = S.p; p.pos.fromArray(P.pos); p.yaw = P.yaw; S.yaw = P.yaw; p.hp = P.hp; p.food = P.food; p.water = P.water; p.sta = P.sta; p.bleed = P.bleed; p.inv = P.inv; p.eq = P.eq >= 0 ? p.inv[P.eq] : null;
     for (const [i, items, gone] of sv.conts) { const c = S.conts[i]; if (!c || c.built) continue; c.items = items; c.searched = true; if (gone) { c.gone = true; if (c.model) { c.model.visible = false; c.model.userData.gone = true; } removeBox(c.box); } }
     for (const g of S.ground.slice()) removeGround(g);
@@ -1346,13 +1349,16 @@ function startGame(sv) {
     const kit = [mk('bat'), mk('pistol'), mk('ammo9', 18), mk('water'), mk('water'), mk('beans'), mk('choco'), mk('bandage'), mk('bandage'), mk('rag'), mk('rag')];
     kit[0].dur = MELEE.bat.dur; kit[1].mag = GUNS.pistol.mag; for (const it of kit) addItem(S.p, it); S.p.eq = S.p.inv[0];
     S.lastHordeDay = 0; S.smallHordeT = R(260, 360);
-    spawnZombies(S.zCount); spawnCars(); if (typeof spawnNPCs === 'function') spawnNPCs(null);
+    spawnZombies(S.zCount); spawnCars();
+    S.campKnown = false;
+    if (typeof CITY !== 'undefined' && CITY.campSpot) { const c = CITY.campSpot, y = getH(c.x, c.z); addPiece('flag', c.x, c.z, 0, y); addPiece('campfire', c.x - 3, c.z - 5, 0, y); addPiece('bench', c.x + 7, c.z + 6, 0, y); addPiece('bed', c.x - 16, c.z - 2, 0, y); addPiece('bed', c.x - 13.5, c.z - 2, 0, y); addPiece('collector', c.x + 15, c.z - 9, 0, y); addPiece('garden', c.x - 4, c.z + 2.5, 0, y); for (const z of S.zombies) if (z.pos.x > c.X0 - 5 && z.pos.x < c.X1 + 5 && z.pos.z > c.Z0 - 5 && z.pos.z < c.Z1 + 5) z.pos.x += 40; }
+    if (typeof spawnNPCs === 'function') spawnNPCs(null);
   }
   saveT = 5;
   S.phase = 'game'; S.camYaw = Math.PI / 4; S.camYawT = S.camYaw; S.zoom = IS_TOUCH ? 0.9 : 1;
   $('menu').classList.add('hidden'); $('end').classList.add('hidden'); $('hud').classList.remove('hidden'); if (IS_TOUCH) $('touch').classList.remove('hidden');
   if (preview) preview.root.visible = false;
-  msg(sv ? `Día ${dayNum()} · ¡Bienvenido de vuelta, ${CR.name}!` : typeof CITY !== 'undefined' ? `Estás en La Orden del Friki. Fuera, en la avenida, hay coches con gasolina (🟦 en el mapa).` : 'Busca comida y agua en las casas. Evita a los zombis.', 4.5);
+  msg(sv ? `Día ${dayNum()} · ¡Bienvenido de vuelta, ${CR.name}!` : typeof CITY !== 'undefined' ? `Estás en La Orden del Friki. Habla con Xavi (${IS_TOUCH ? '✋' : 'E'}): tiene un plan.` : 'Busca comida y agua en las casas. Evita a los zombis.', 4.5);
   if (S.view === 'fp' && !IS_TOUCH) requestLock();
 }
 function toMenu() {

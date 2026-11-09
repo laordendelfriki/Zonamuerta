@@ -589,6 +589,34 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
       const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.25), new THREE.MeshBasicMaterial({ map: t })); m.position.set(x + ox, Y + 3.0, z + oz); m.rotation.y = rot; scene.add(m);
     }
   }
+  // ---------- campamento amurallado fuera de la ciudad (carretera de Sant Fost) ----------
+  { const C = POIS.find(p => p.type === 'camp');
+    if (C) { useArea('road');
+      const X0 = C.x - 23, X1 = C.x + 23, Z0 = C.z - 19, Z1 = C.z + 19, H = 3.0, gw = 4.4;
+      CITY.campSpot = { x: C.x, z: C.z, X0, X1, Z0, Z1, gate: [C.x, Z0] };
+      SOL.box(C.x, Y + 0.02, C.z, X1 - X0, 0.04, Z1 - Z0, 0x8a8070); // grava
+      ASM.box(C.x, Y + 0.02, (Z0 + 3) / 2, 5, 0.04, Z0 - 3, 0xffffff); // camino hasta la puerta
+      const wall = (ax, az, bx, bz) => { const alongX = az === bz, len = alongX ? Math.abs(bx - ax) : Math.abs(bz - az), cx = (ax + bx) / 2, cz = (az + bz) / 2;
+        for (let t = 0; t < len; t += 2) { const px = alongX ? Math.min(ax, bx) + t + 1 : ax, pz = alongX ? az : Math.min(az, bz) + t + 1; if (alongX && az === Z0 && Math.abs(px - C.x) < gw / 2 + 0.2) continue; STN.box(px, Y + 0.6, pz, alongX ? 1.96 : 0.7, 1.2, alongX ? 0.7 : 1.96, 0xc8c4b8); MET.box(px, Y + 1.2 + (H - 1.2) / 2, pz + (alongX ? 0.05 : 0), alongX ? 2.0 : 0.06, H - 1.2, alongX ? 0.06 : 2.0, pick([0xa8acb2, 0x8a8c92, 0x9a7a5a])); }
+        for (let t = 0; t <= len; t += 4) { const px = alongX ? Math.min(ax, bx) + t : ax, pz = alongX ? az : Math.min(az, bz) + t; WOD.box(px, Y + H / 2 + 0.2, pz, 0.18, H + 0.4, 0.18, 0x7a5a3a); }
+        for (let t = 0; t < len; t += 0.5) { const px = alongX ? Math.min(ax, bx) + t : ax, pz = alongX ? az : Math.min(az, bz) + t; if (alongX && az === Z0 && Math.abs(px - C.x) < gw / 2) continue; MET.box(px, Y + H + 0.25, pz, 0.04, 0.5, 0.04, 0x6a6a72); } // alambre
+        addBox(Math.min(ax, bx) - (alongX ? 0 : 0.4), Y, Math.min(az, bz) - (alongX ? 0.4 : 0), Math.max(ax, bx) + (alongX ? 0 : 0.4), Y + H + 0.5, Math.max(az, bz) + (alongX ? 0.4 : 0)); };
+      wall(X0, Z1, X1, Z1); wall(X0, Z0, X1, Z0 + 0 * 1); wall(X0, Z0, X0, Z1); wall(X1, Z0, X1, Z1);
+      // la puerta: abre un hueco en el muro sur
+      { const gx0 = C.x - gw / 2, gx1 = C.x + gw / 2; for (let i = BOXES.length - 1; i >= 0; i--) { const b = BOXES[i]; if (Math.abs(b.z0 - (Z0 - 0.4)) < 0.01 && b.x0 <= gx0 && b.x1 >= gx1) { BOXES.splice(i, 1); for (const l of COLGRID.values()) { const j = l.indexOf(b); if (j >= 0) l.splice(j, 1); } addBox(b.x0, b.y0, b.z0, gx0, b.y1, b.z1); addBox(gx1, b.y0, b.z0, b.x1, b.y1, b.z1); break; } } }
+      (CITY.doors = CITY.doors || []).push({ x: C.x, z: Z0, y: Y, rot: 0, gate: true, spawn: false, shop: false, name: 'Puerta del campamento' });
+      // torres de vigilancia
+      for (const [tx, tz] of [[X0 + 1.5, Z0 + 1.5], [X1 - 1.5, Z0 + 1.5], [X0 + 1.5, Z1 - 1.5], [X1 - 1.5, Z1 - 1.5]]) { for (const a of [-1, 1]) for (const b of [-1, 1]) WOD.box(tx + a * 1.1, Y + 2.6, tz + b * 1.1, 0.16, 5.2, 0.16, 0x6a4a32); WOD.box(tx, Y + 4.4, tz, 2.6, 0.12, 2.6, 0xb08050); for (const a of [-1, 1]) { WOD.box(tx + a * 1.25, Y + 4.95, tz, 0.08, 1.0, 2.5, 0xc8a878); WOD.box(tx, Y + 4.95, tz + a * 1.25, 2.5, 1.0, 0.08, 0xc8a878); } SOL.box(tx, Y + 6.0, tz, 3.0, 0.08, 3.0, 0x4a5a3a); for (let k = 0; k < 9; k++) WOD.box(tx + 1.15, Y + 0.3 + k * 0.5, tz - 1.3, 0.5, 0.05, 0.05, 0x8a6a4a); addBox(tx - 1.2, Y, tz - 1.2, tx + 1.2, Y + 2, tz + 1.2); }
+      // tiendas de campaña, sacos y bidones
+      for (const [tx, tz, rot] of [[C.x - 14, C.z + 10, 0], [C.x - 6, C.z + 12, 0], [C.x + 12, C.z + 10, 1]]) { m4.compose(ps.set(tx, Y + 1.1, tz), q.setFromEuler(_e.set(0, rot ? Math.PI / 2 : 0, Math.PI / 4)), sc.set(2.0, 2.0, 3.6)); SOL.geo(geoBox, m4, pick([0x4a5a3a, 0x3a4a5a, 0x5a4a3a])); addBox(tx - (rot ? 1.8 : 1.4), Y, tz - (rot ? 1.4 : 1.8), tx + (rot ? 1.8 : 1.4), Y + 2, tz + (rot ? 1.4 : 1.8)); }
+      for (let k = -4; k <= 4; k++) for (let st = 0; st < 2; st++) { m4.compose(ps.set(C.x + k * 0.62 + (st % 2) * 0.3, Y + 0.16 + st * 0.27, Z0 + 3.2), q.identity(), sc.set(0.34, 0.15, 0.24)); if (Math.abs(k) > 1) SOL.geo(geoSph, m4, 0xa8946a); }
+      for (const [bx, bz] of [[X1 - 4, C.z - 6], [X1 - 4.8, C.z - 5.3], [X0 + 4, C.z - 8]]) { m4.compose(ps.set(bx, Y + 0.45, bz), q.identity(), sc.set(0.32, 0.9, 0.32)); MET.geo(geoCyl, m4, pick([0x2a5a9a, 0x8a2a2a, 0x4a5a3a])); addCircle(bx, bz, 0.35, Y, Y + 0.9); }
+      for (const [fx, fz] of [[X0 + 3, Z1 - 3], [X1 - 3, Z1 - 3]]) { MET.box(fx, Y + 2, fz, 0.1, 4, 0.1, 0x3a3a40); LMP.box(fx, Y + 4, fz, 0.6, 0.3, 0.3, 0xfff0c0); }
+      WOD.box(C.x + 8, Y + 0.75, C.z - 2, 1.8, 0.06, 0.8, 0xb08050); for (const s2 of [-1, 1]) WOD.box(C.x + 8, Y + 0.45, C.z - 2 + s2 * 0.75, 1.8, 0.05, 0.3, 0xb08050);
+      CITY.conts.push({ kind: 'crate', name: 'Caja de suministros', loot: 'crate', pos: new THREE.Vector3(X0 + 3.5, Y, C.z), room: null }); WOD.box(X0 + 2.6, Y + 0.4, C.z, 1.0, 0.8, 0.8, 0xb8834a); addBox(X0 + 2.1, Y, C.z - 0.4, X0 + 3.1, Y + 0.8, C.z + 0.4);
+      CITY.labels.push({ name: 'Campamento', x: C.x, z: Z1 + 6, place: true, town: true });
+      useArea('city'); }
+  }
   // ---------- detalles de los pueblos y carreteras ----------
   for (const tw of CITY.towns) {
     const { T, xs, zs, xw, zw, X0, X1, Z0, Z1 } = tw; useArea(T.name);
