@@ -254,6 +254,9 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
     if (rand() < 0.5) { const [x, z] = W2(sg, R(-sg.w / 3, sg.w / 3), sg.D / 2); m4.compose(ps.set(x, y + 0.9, z), q.identity(), sc.set(0.7, 1.4, 0.7)); M.geo(geoCyl, m4, 0xe8e8ec); }
     if (rand() < 0.4) { const [x, z] = W2(sg, R(-sg.w / 3, sg.w / 3), sg.D * 0.6); M.box(x, y + 1.2, z, 0.06, 2.4, 0.06, 0x6a6a72); M.box(x, y + 2.2, z, 1.2, 0.05, 0.05, 0x6a6a72); }
   }
+  // todos los edificios se pueden visitar: los que no tienen local asignado son viviendas, locales vacíos u oficinas
+  for (const sg of segs) if (!sg.room && sg.w >= 6 && sg.D >= 5) sg.room = { name: null, kind: sg.shop || (sg.town && POIS.find(p => p.name === sg.town && p.ind)) ? 'local' : rand() < 0.15 ? 'oficina' : 'casa', generic: true };
+  CITY.Y = Y;
   for (const sg of segs) {
     useArea(sg.town || 'city');
     const a = W2(sg, -sg.w / 2, 0), b = W2(sg, sg.w / 2, sg.D);
@@ -275,14 +278,14 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
     }
     // ---- local con interior ----
     const sh = sg.room, Hc = 3.6, T = 0.3, w = sg.w, D = sg.D, door = 2.0;
-    const RM = INT_P, UP = new Merger(), UG = GL, URF = UP;
-    const wallC = sh.kind === 'friki' ? 0xd8c8f0 : 0xf2ede4, FLR = (sh.kind === 'piso' || sh.kind === 'friki') ? INT_W : INT_T;
+    const RM = INT_P, UP = sg.brick ? BRK : FAC, UG = GL;
+    const wallC = sh.kind === 'friki' ? 0xd8c8f0 : 0xf2ede4, FLR = (sh.kind === 'piso' || sh.kind === 'friki' || sh.kind === 'casa' || sh.kind === 'oficina') ? INT_W : INT_T;
     sbox(FLR, sg, 0, Y + 0.03, D / 2, w - 0.1, 0.06, D - 0.1, sh.kind === 'friki' ? 0x7a5a48 : sh.kind === 'piso' ? 0xffffff : 0xffffff);
     // paredes interiores (fondo y laterales)
     sbox(RM, sg, 0, Y + Hc / 2, D - T / 2, w, Hc, T, wallC); scol(sg, -w / 2, D - T, w / 2, D, 0, Hc);
     for (const s of [-1, 1]) { sbox(RM, sg, s * (w / 2 - T / 2), Y + Hc / 2, D / 2, T, Hc, D, wallC); scol(sg, s > 0 ? w / 2 - T : -w / 2, 0, s > 0 ? w / 2 : -w / 2 + T, D, 0, Hc); }
     // fachada: escaparates + puerta
-    const side = (w - door) / 2, fc = sh.kind === 'piso' ? sg.col : 0x2a2a30;
+    const side = (w - door) / 2, fc = (sh.kind === 'piso' || sh.kind === 'casa' || sh.kind === 'oficina') ? (sg.brick ? 0x9a5a42 : sg.col) : 0x2a2a30;
     for (const s of [-1, 1]) {
       const uc = s * (door / 2 + side / 2);
       sbox(RM, sg, uc, Y + 0.45, T / 2, side, 0.9, T, fc); sbox(GL, sg, uc, Y + 1.75, T / 2, side - 0.3, 1.7, 0.08, 0x2a4050);
@@ -290,21 +293,22 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
       scol(sg, s > 0 ? door / 2 : -w / 2, 0, s > 0 ? w / 2 : -door / 2, T, 0, Hc);
     }
     sbox(RM, sg, 0, Y + (2.6 + Hc) / 2, T / 2, w, Hc - 2.6, T, fc); scol(sg, -door / 2, 0, door / 2, T, 2.6, Hc);
-    { const [dx, dz] = W2(sg, 0, T / 2); (CITY.doors = CITY.doors || []).push({ x: dx, z: dz, y: Y, rot: sg.tx !== 0 ? 0 : 1, shop: sh.kind !== 'piso', spawn: !!sh.spawn, name: sh.name }); }
+    { const [dx, dz] = W2(sg, 0, T / 2); (CITY.doors = CITY.doors || []).push({ x: dx, z: dz, y: Y, rot: sg.tx !== 0 ? 0 : 1, shop: !['piso', 'casa', 'oficina'].includes(sh.kind), generic: !!sh.generic, spawn: !!sh.spawn, name: sh.name }); }
     // pisos superiores (se ocultan en vista cenital)
     const upH = Math.max(0.6, sg.H - Hc);
-    sbox(UP, sg, 0, Y + Hc - 0.05, D / 2, w, 0.1, D, 0xf4f0ec); // techo interior
-    sbox(UP, sg, 0, Y + Hc + upH / 2, D / 2, w, upH, D, sg.col); addBox(x0, Y + Hc, z0, x1, Y + sg.H, z1);
-    sbox(UP, sg, 0, Y + Hc + 0.1, -0.06, w, 0.2, 0.14, 0xf4f0e8);
-    facadeWindows(UP, UG, sg, 1); roofDetails(UP, sg, Y + sg.H, URF, UP);
+    sbox(INT_P, sg, 0, Y + Hc - 0.05, D / 2, w, 0.1, D, 0xf4f0ec); // techo interior
+    sbox(UP, sg, 0, Y + Hc + upH / 2, D / 2, w, upH, D, sg.brick ? 0xffffff : sg.col); addBox(x0, Y + Hc, z0, x1, Y + sg.H, z1);
+    sbox(STN, sg, 0, Y + Hc + 0.1, -0.06, w, 0.2, 0.14, 0xf4f0e8);
+    facadeWindows(SOL, UG, sg, 1); roofDetails(SOL, sg, Y + sg.H);
     // rótulo y toldo
     if (sh.name) {
       const sm = signMesh(sh.name, sh.bg, sh.fg, Math.min(w - 1, 9)); const [sx, sz] = W2(sg, 0, -0.22); sm.position.set(sx, Y + 3.05, sz); sm.rotation.y = Math.atan2(-sg.nx, -sg.nz) + Math.PI; scene.add(sm); sm.userData.cd = 160; CITY.cull.push(sm);
       sbox(RM, sg, 0, Y + 3.05, -0.12, Math.min(w - 0.6, 9.4), 0.9, 0.16, 0x1a1a1a);
       if (sh.kind === 'friki') { const lg = new THREE.Mesh(new THREE.CircleGeometry(0.42, 24), new THREE.MeshBasicMaterial({ color: 0xff7a1a, toneMapped: false })); const [lx, lz] = W2(sg, -Math.min(w - 1, 9) / 2 - 0.1, -0.24); lg.position.set(lx, Y + 3.05, lz); lg.rotation.y = sm.rotation.y; scene.add(lg); }
     }
-    const up = new THREE.Group(); up.add(UP.mesh(sg.brick ? TM.brick : TM.plaster)); scene.add(up); up.position.set(0, 0, 0); { const um = up.children[0]; um.userData.cd = 300; um.position.set(0, 0, 0); } CITY.cullUp = CITY.cullUp || []; CITY.cullUp.push([up, (x0 + x1) / 2, (z0 + z1) / 2]);
-    const room = { name: sh.name || 'Piso bajo', kind: sh.kind, x0, x1, z0, z1, roof: [up], y: Y, sg };
+    // (los pisos de arriba van fusionados; en vista cenital se recortan con un plano de corte)
+    if (sh.generic && sg.shop) { sbox(SOL, sg, 0, Y + 3.1, -0.6, sg.w - 0.6, 0.12, 1.2, sg.shop); sbox(SOL, sg, 0, Y + 3.0, -1.2, sg.w - 0.6, 0.35, 0.05, sg.shop); }
+    const room = { name: sh.name || (sh.kind === 'local' ? 'Local' : sh.kind === 'oficina' ? 'Oficina' : 'Piso bajo'), kind: sh.kind, x0, x1, z0, z1, roof: [], y: Y, sg };
     CITY.rooms.push(room);
     // ---- mobiliario y contenedores ----
     const FUR = INT_F;
@@ -346,6 +350,26 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
     else if (sh.kind === 'quiosc') { shelf(0, D - 0.65, w - 2, [0xe83a3a, 0x3a6ad8, 0xf0c43a, 0x5a3018], 'quiosc'); counter(0, 2.4, w - 3.5, 'quiosc', 'Mostrador'); }
     else if (sh.kind === 'policia') { counter(0, 2.6, w - 3, 'crate', 'Recepción'); shelf(0, D - 0.65, w - 2, [0x3a4a6a, 0x2a2a30], 'policia', 'Taquillas'); }
     else if (sh.kind === 'ajuntament') { counter(0, 2.8, w - 3, 'crate', 'Mostrador'); shelf(0, D - 0.65, w - 2, [0xe8e0c8, 0x8a6a4a], 'crate', 'Archivo'); }
+    else if (sh.kind === 'casa') { // vivienda: muebles fusionados, un armario y la cocina para registrar
+      const col = pick([0x6a3a3a, 0x3a4a6a, 0x5a6a3a, 0x7a6a5a, 0x4a4a4a]);
+      sbox(FUR, sg, -w / 2 + 1.0, Y + 0.25, D / 2, 1.6, 0.5, 2.2, col); sbox(FUR, sg, -w / 2 + 0.45, Y + 0.6, D / 2, 0.45, 0.9, 2.2, col); scol(sg, -w / 2, D / 2 - 1.1, -w / 2 + 1.8, D / 2 + 1.1, 0, 0.8);
+      sbox(FUR, sg, 0.3, Y + 0.02, D / 2, 2.2, 0.02, 1.6, pick([0x8a3a2a, 0x3a5a7a, 0x6a6a3a])); // alfombra
+      table(0.4, D / 2 - 0.2); for (const s2 of [-1, 1]) { sbox(FUR, sg, 0.4 + s2 * 1.1, Y + 0.45, D / 2 - 0.2, 0.45, 0.06, 0.45, 0x5a3a2a); sbox(FUR, sg, 0.4 + s2 * 1.3, Y + 0.7, D / 2 - 0.2, 0.06, 0.55, 0.45, 0x5a3a2a); }
+      sbox(FUR, sg, w / 2 - 1.2, Y + 0.45, D - 0.45, 2.0, 0.9, 0.6, 0xd8d2c6); sbox(FUR, sg, w / 2 - 1.2, Y + 0.92, D - 0.45, 2.05, 0.05, 0.65, 0x3a3a3a); scol(sg, w / 2 - 2.2, D - 0.8, w / 2 - 0.2, D, 0, 0.95); cont(w / 2 - 1.2, D - 1.2, 'cab', 'Cocina', 'kitchen');
+      sbox(FUR, sg, -w / 2 + 0.9, Y + 1.0, D - 0.4, 1.2, 2.0, 0.6, 0x7a5a3a); scol(sg, -w / 2 + 0.3, D - 0.7, -w / 2 + 1.5, D, 0, 2); cont(-w / 2 + 0.9, D - 1.1, 'cab', 'Armario', 'home');
+      if (w > 7) { sbox(FUR, sg, w / 2 - 1.2, Y + 0.3, 1.8, 1.6, 0.5, 2.0, 0xd8d0c0); sbox(FUR, sg, w / 2 - 1.2, Y + 0.55, 0.9, 1.6, 0.4, 0.15, 0x6a4a3a); scol(sg, w / 2 - 2, 0.8, w / 2 - 0.4, 2.8, 0, 0.6); }
+      sbox(FUR, sg, -w / 2 + 0.2, Y + 1.2, D / 2, 0.06, 0.6, 1.0, 0x111111); // tele en la pared
+      for (let k = 0; k < 4; k++) sbox(FUR, sg, R(-w / 2 + 1, w / 2 - 1), Y + 0.05, R(1, D - 1), R(0.2, 0.5), 0.05, R(0.2, 0.5), pick([0xe8e0c8, 0x6a5a4a, 0x3a3a3a])); // trastos tirados
+    } else if (sh.kind === 'local') { // local abandonado: estanterías medio vacías, mostrador y cajas
+      const rows = Math.max(1, Math.floor((w - 3) / 3.2)); for (let r = 0; r < Math.min(rows, 2); r++) { const u = -w / 2 + 2 + r * 3.2; sbox(FUR, sg, u, Y + 0.9, D / 2 + 0.3, 0.5, 1.8, D - 4, 0x8a8a92); for (let k = 0; k < 4; k++) sbox(FUR, sg, u, Y + 0.1 + k * 0.5, D / 2 + 0.3, 0.55, 0.04, D - 4, 0xc8c8ce); const a2 = W2(sg, u - 0.25, D / 2 + 0.3 - (D - 4) / 2), b2 = W2(sg, u + 0.25, D / 2 + 0.3 + (D - 4) / 2); addBox(Math.min(a2[0], b2[0]), Y, Math.min(a2[1], b2[1]), Math.max(a2[0], b2[0]), Y + 1.8, Math.max(a2[1], b2[1])); if (r === 0) cont(u + 0.8, D / 2, 'shelf', 'Estantería', 'localx'); }
+      counter(w / 2 - 1.4, 2.0, 1.8, 'localx', 'Mostrador');
+      for (let k = 0; k < 3; k++) { const u = R(-w / 2 + 1, w / 2 - 1), v = R(1.5, D - 1); sbox(FUR, sg, u, Y + 0.25, v, 0.6, 0.5, 0.5, 0xb8834a); }
+      for (let k = 0; k < 6; k++) sbox(FUR, sg, R(-w / 2 + 1, w / 2 - 1), Y + 0.04, R(1, D - 1), R(0.15, 0.4), 0.04, R(0.15, 0.4), pick([0xe8e0c8, 0xc83a2a, 0x3a6ad8]));
+    } else if (sh.kind === 'oficina') { // oficina: mesas, sillas y archivadores
+      for (let k = 0; k < Math.min(3, Math.floor(w / 3)); k++) { const u = -w / 2 + 1.6 + k * 2.8; sbox(FUR, sg, u, Y + 0.74, D / 2, 1.4, 0.05, 0.75, 0xd8d0c0); for (const a of [-1, 1]) sbox(FUR, sg, u + a * 0.65, Y + 0.37, D / 2, 0.05, 0.74, 0.7, 0x5a5a62); sbox(FUR, sg, u, Y + 0.95, D / 2 + 0.2, 0.5, 0.35, 0.04, 0x1a1a1e); sbox(FUR, sg, u, Y + 0.45, D / 2 - 0.6, 0.45, 0.08, 0.45, 0x2a2a30); scol(sg, u - 0.7, D / 2 - 0.4, u + 0.7, D / 2 + 0.4, 0, 0.8); }
+      sbox(FUR, sg, -w / 2 + 0.6, Y + 0.65, D - 0.4, 0.8, 1.3, 0.5, 0x8a8c92); scol(sg, -w / 2 + 0.2, D - 0.65, -w / 2 + 1.0, D, 0, 1.3); cont(-w / 2 + 0.6, D - 1.0, 'cab', 'Archivador', 'office');
+      for (let k = 0; k < 8; k++) sbox(FUR, sg, R(-w / 2 + 1, w / 2 - 1), Y + 0.03, R(1, D - 1), 0.21, 0.01, 0.29, 0xf0f0ec); // papeles
+    }
     else { // piso
       const fr = flatModel(fridgeModel()), ck = flatModel(cabinetModel()), sk = flatModel(sinkModel());
       const put = (mod, u, v, fw, fd, h, kind, name, water) => { const [x, z] = W2(sg, u, v); mod.position.set(x, Y + 0.06, z); mod.rotation.y = Math.atan2(sg.nx, sg.nz); scene.add(mod); const a2 = W2(sg, u - fw / 2, v - fd / 2), b2 = W2(sg, u + fw / 2, v + fd / 2); const bx = addBox(Math.min(a2[0], b2[0]), Y, Math.min(a2[1], b2[1]), Math.max(a2[0], b2[0]), Y + h, Math.max(a2[1], b2[1])); cont(u, v - fd / 2 - 0.5, kind, name, kind === 'sink' ? null : kind, water); const cc = CITY.conts[CITY.conts.length - 1]; cc.model = mod; cc.box = bx; cc.dismantle = kind === 'cab' ? { plank: 3, nails: 4 } : kind === 'fridge' ? { scrap: 2 } : null; };
@@ -419,12 +443,13 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
     addCircle(x, z, 0.12, Y, Y + 5);
     if (XW[i] === 16 || (i !== XS.length - 1 && rand() < 0.35)) { const tx = XS[i] + s * (XW[i] / 2 + 1.7), tz = z + 11; planeTree(tx, tz, XW[i] === 16 ? 1 : 0.8); }
   }
+  (CITY.carSpots = CITY.carSpots || []).push([-6.6, -111, 0], [-6.6, -126, Math.PI], [6.6, -104, Math.PI], [6.6, -132 + 14, 0]);
   const CARC = [0xd8d8dc, 0x2a2a30, 0x8a2a2a, 0x2a3a6a, 0x6a6a72, 0xb89a3a, 0x2a4a3a, 0x4a2a2a, 0x8a8a90];
-  for (let k = 0; k < 85; k++) {
+  for (let k = 0; k < 110; k++) {
     const alongZ = rand() < 0.5, idx = RI(0, XS.length - 1); let x, z;
     if (alongZ) { x = XS[idx] + (rand() < 0.5 ? -1 : 1) * (XW[idx] / 2 - 1.2); z = R(L0, L1); if (ZS.some(zz => Math.abs(z - zz) < 12)) continue; }
     else { z = ZS[idx] + (rand() < 0.5 ? -1 : 1) * (ZW[idx] / 2 - 1.2); x = R(L0, 140); if (XS.some(xx => Math.abs(x - xx) < 14)) continue; }
-    const r = rand(); car(x, z, (alongZ ? 0 : Math.PI / 2) + R(-0.06, 0.06) + (rand() < 0.5 ? Math.PI : 0), pick(CARC), r < 0.3 ? 1 : 0);
+    const r = rand(), ang = (alongZ ? 0 : Math.PI / 2) + R(-0.06, 0.06) + (rand() < 0.5 ? Math.PI : 0); if (r >= 0.3 && rand() < 0.5) (CITY.carSpots = CITY.carSpots || []).push([x, z, ang]); else car(x, z, ang, pick(CARC), r < 0.3 ? 1 : 0);
   }
   // coches abandonados en mitad de la calzada, cruzados, quemados o volcados
   for (let k = 0; k < 26; k++) {
@@ -568,7 +593,7 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
   for (const tw of CITY.towns) {
     const { T, xs, zs, xw, zw, X0, X1, Z0, Z1 } = tw; useArea(T.name);
     for (let i = 0; i < xs.length; i++) for (let z = Z0 + 6; z < Z1 - 4; z += 26) { if (zs.some(zz => Math.abs(z - zz) < 8)) continue; const x = xs[i] + (xw[i] / 2 + 0.6); SOL.box(x, Y + 2.6, z, 0.12, 5.2, 0.12, 0x3a3a40); SOL.box(x - 0.5, Y + 5.15, z, 1.0, 0.08, 0.1, 0x3a3a40); LMP.box(x - 0.95, Y + 5.05, z, 0.45, 0.12, 0.3, 0xfff0c0); addCircle(x, z, 0.12, Y, Y + 5); }
-    for (let k = 0; k < (T.n >= 2 ? 14 : 8); k++) { const along = rand() < 0.5; const x = along ? pick(xs) + R(-3, 3) : R(X0 + 6, X1 - 6), z = along ? R(Z0 + 6, Z1 - 6) : pick(zs) + R(-3, 3); if (xs.some(a => Math.abs(x - a) < 6) && zs.some(b => Math.abs(z - b) < 6)) continue; const r = rand(); car(x, z, along ? R(-0.3, 0.3) + (rand() < 0.5 ? Math.PI : 0) : Math.PI / 2 + R(-0.3, 0.3), pick(CARC), r < 0.4 ? 1 : r < 0.5 ? 2 : 0); }
+    for (let k = 0; k < (T.n >= 2 ? 14 : 8); k++) { const along = rand() < 0.5; const x = along ? pick(xs) + R(-3, 3) : R(X0 + 6, X1 - 6), z = along ? R(Z0 + 6, Z1 - 6) : pick(zs) + R(-3, 3); if (xs.some(a => Math.abs(x - a) < 6) && zs.some(b => Math.abs(z - b) < 6)) continue; const r = rand(), ang = along ? R(-0.3, 0.3) + (rand() < 0.5 ? Math.PI : 0) : Math.PI / 2 + R(-0.3, 0.3); if (r >= 0.5 && rand() < 0.6) (CITY.carSpots = CITY.carSpots || []).push([x, z, ang]); else car(x, z, ang, pick(CARC), r < 0.4 ? 1 : r < 0.5 ? 2 : 0); }
     for (let k = 0; k < 160; k++) { const along = rand() < 0.5; CITY.streetPts.push(along ? [pick(xs) + R(-3, 3), R(Z0, Z1)] : [R(X0, X1), pick(zs) + R(-3, 3)]); }
     for (let k = 0; k < 220; k++) { const along = rand() < 0.5, x = along ? pick(xs) + R(-5, 5) : R(X0, X1), z = along ? R(Z0, Z1) : pick(zs) + R(-5, 5), r = rand(); if (r < 0.5) DEC.box(x, Y + 0.075, z, R(0.12, 0.3), 0.01, R(0.08, 0.22), pick([0xa8782a, 0xc8a040, 0x8a5a24])); else if (r < 0.75) DEC.box(x, Y + 0.08, z, R(0.2, 0.35), 0.008, R(0.25, 0.4), 0xe8e0c8); else { const sz = R(0.4, 1.3); m4.compose(ps.set(x, Y + 0.062, z), q.setFromEuler(_e.set(0, rand() * 6, 0)), sc.set(sz, 0.004, sz * R(0.5, 1))); DEC.geo(geoCyl, m4, 0x2a0604); } }
     for (let k = 0; k < 30; k++) { const along = rand() < 0.5, x = along ? pick(xs) + (rand() < 0.5 ? -1 : 1) * 6.2 : R(X0, X1), z = along ? R(Z0, Z1) : pick(zs) + (rand() < 0.5 ? -1 : 1) * 6.2; const n = RI(2, 5); for (let m = 0; m < n; m++) { const sz = R(0.3, 0.45); m4.compose(ps.set(x + R(-0.6, 0.6), Y + sz * 0.55, z + R(-0.6, 0.6)), q.setFromEuler(_e.set(0, R(0, 6), 0)), sc.set(sz, sz * 0.8, sz * 1.1)); SOL.geo(geoSph, m4, pick([0x18181c, 0x22222a, 0x2a3a2a])); } }

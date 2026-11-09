@@ -99,9 +99,13 @@ const LOOT = {
   vending: { soda: 5, water: 4, chips: 2, choco: 2 },
   benzinera: { gas: 6, soda: 3, chips: 3, choco: 2, water: 2, rag: 1, tape: 1 },
   taller: { gas: 3, scrap: 3, nails: 3, tape: 2, plank: 1.5, hammer: 1, pipe: 1.5, rope: 1.5 },
+  home: { _none: 7, rag: 2, bottle: 1.5, pills: 0.5, tape: 0.4, booster: 0.3, choco: 0.5, rope: 0.4, bandage: 0.4, knife: 0.2 },
+  kitchen: { _none: 6, beans: 1, bottle: 1.2, knife: 0.5, pan: 0.5, cereal: 0.6, water: 0.4, alcohol: 0.4 },
+  localx: { _none: 6, rag: 1, bottle: 1, chips: 0.6, soda: 0.5, tape: 0.4, scrap: 0.5, nails: 0.5, booster: 0.2 },
+  office: { _none: 6, rag: 0.6, tape: 0.6, scrap: 0.4, pills: 0.4, soda: 0.3, choco: 0.3 },
   floor: { stick: 2.2, stone: 2, rope: 0.4, rag: 1.2, tape: 0.3, plank: 0.8, nails: 0.6, bottle: 3, chips: 2, apple: 2, soda: 2, pipe: 1, bandage: 1, choco: 1.5, knife: 0.5 },
 };
-function rollItem(kind) { const id = wpk(LOOT[kind]); return mk(id, ITEMS[id].stack ? (id === 'ammo9' ? RI(4, 14) : id === 'nails' ? RI(6, 20) : id === 'seeds' ? RI(2, 5) : RI(2, 6)) : 1); }
+function rollItem(kind) { const id = wpk(LOOT[kind]); if (id === '_none') return null; return mk(id, ITEMS[id].stack ? (id === 'ammo9' ? RI(4, 14) : id === 'nails' ? RI(6, 20) : id === 'seeds' ? RI(2, 5) : RI(2, 6)) : 1); }
 function invWeight(p) { let w = 0; for (const it of p.inv) w += ITEMS[it.id].w * it.n; return w; }
 const MAX_W = 25;
 function addItem(p, it) {
@@ -235,7 +239,7 @@ function fillContainers() {
   for (const c of S.conts) {
     c.items = []; const lt = c.loot !== undefined ? c.loot : c.kind; if (!lt || !LOOT[lt]) continue;
     const n = c.kind === 'fridge' ? RI(0, 3) : c.kind === 'crate' ? RI(1, 3) : c.kind === 'shelf' ? RI(1, 4) : RI(0, 3);
-    for (let i = 0; i < n; i++) c.items.push(rollItem(lt));
+    for (let i = 0; i < n; i++) { const it = rollItem(lt); if (it) c.items.push(it); }
   }
 }
 
@@ -301,7 +305,7 @@ function spawnZombies(n, far) {
   const p = S.p; let tries = 0;
   while (S.zombies.length < n && tries++ < 5000) {
     let x, z;
-    if (typeof CITY !== 'undefined' && CITY.streetPts.length) { if (rand() < 0.75) { const sp = pick(CITY.streetPts); x = sp[0]; z = sp[1]; } else { const r = pick(CITY.rooms); x = R(r.x0 + 1, r.x1 - 1); z = R(r.z0 + 1, r.z1 - 1); } if (p && Math.hypot(x - p.pos.x, z - p.pos.z) > (far ? 230 : 320) && rand() < 0.85) continue; }
+    if (typeof CITY !== 'undefined' && CITY.streetPts.length) { if (rand() < 0.75) { const sp = pick(CITY.streetPts); x = sp[0]; z = sp[1]; } else { const r = pick(CITY.rooms); x = R(r.x0 + 1, r.x1 - 1); z = R(r.z0 + 1, r.z1 - 1); } if (p && Math.hypot(x - p.pos.x, z - p.pos.z) > (far ? 230 : 320) && rand() < 0.85) continue; if (!(x > -240 && x < 170 && z > -240 && z < 175) && rand() < 0.85) continue; }
     else if (rand() < 0.75 && HOUSES.length) { const h = pick(HOUSES); x = h.cx + R(-12, 12); z = h.cz + R(-12, 12); }
     else { x = R(-HALF * 0.75, HALF * 0.75); z = R(-HALF * 0.75, HALF * 0.75); }
     if (getH(x, z) < 1.5) continue; if (p && Math.hypot(x - p.pos.x, z - p.pos.z) < (far ? 70 : 40)) continue;
@@ -312,8 +316,8 @@ let respT = 10;
 function respawnZombies(dt) {
   respT -= dt; if (respT > 0) return; respT = 12;
   for (const z of S.zombies.slice()) if (!z.alive && z.deadT > 40) { scene.remove(z.model); if (z.pool) scene.remove(z.pool); S.zombies.splice(S.zombies.indexOf(z), 1); }
-  const target = Math.min(80, Math.round((40 + dayNum() * 3) * (dayLight() < 0.2 ? 1.25 : 1))), alive = S.zombies.filter(z => z.alive).length; if (alive > 110) return;
-  if (alive < target) { const n0 = S.zombies.length; spawnZombies(n0 + Math.min(3, target - alive), true); }
+  const target = Math.min(220, Math.round((S.zCount + dayNum() * 6) * (dayLight() < 0.2 ? 1.2 : 1))), alive = S.zombies.filter(z => z.alive).length; if (alive > 240) return;
+  if (alive < target) { const n0 = S.zombies.length; spawnZombies(n0 + Math.min(6, target - alive), true); }
 }
 function emitNoise(pos, radius) {
   for (const z of S.zombies) { if (!z.alive) continue; const d = z.pos.distanceTo(pos); if (d < radius) { z.state = 'hunt'; z.target.copy(pos); z.alertT = Math.max(z.alertT, 10); } }
@@ -328,6 +332,7 @@ function zombieSees(z, p) {
   return rayWorld(_v, dir, L) >= L - 0.5;
 }
 function updateZombie(z, dt) {
+  if (z.alive && S.p && z.state !== 'chase') { const fd = Math.abs(z.pos.x - S.p.pos.x) + Math.abs(z.pos.z - S.p.pos.z); if (fd > 140) { z.lodT = (z.lodT || 0) + dt; if (z.lodT < 0.5) { z.model.visible = false; return; } dt = z.lodT; z.lodT = 0; } }
   if (!z.alive) { z.deadT += dt; if (!z.poolMax) z.poolMax = R(0.6, 1.1); animCorpse(z, dt); if (z.deadT > 45) { z.model.visible = false; if (z.pool) z.pool.visible = false; } return; }
   const p = S.p, night = 1 - dayLight();
   z.atkCd -= dt; z.groanT -= dt; if (z.stun > 0) z.stun -= dt;
@@ -777,6 +782,7 @@ function updateCamera(dt) {
   let inside = null; if (typeof CITY !== 'undefined') for (const r of CITY.rooms) if (p.pos.x > r.x0 && p.pos.x < r.x1 && p.pos.z > r.z0 && p.pos.z < r.z1) { inside = r; break; }
   if (!inside) for (const h of HOUSES) if (p.pos.x > h.x0 - 0.2 && p.pos.x < h.x1 + 0.2 && p.pos.z > h.z0 - 0.2 && p.pos.z < h.z1 + 0.2) { inside = h; break; }
   const hideRoof = S.view === 'top' ? inside : null;
+  if (!!hideRoof !== !!S.clipOn) { S.clipOn = !!hideRoof; renderer.clippingPlanes = hideRoof ? [new THREE.Plane(new THREE.Vector3(0, -1, 0), (CITY.Y || hideRoof.y || 0) + 3.45)] : []; }
   if (hideRoof !== S.roofHidden) { if (S.roofHidden) for (const r of S.roofHidden.roof) { r.visible = true; r.userData.hidden = false; } if (hideRoof) for (const r of hideRoof.roof) { r.visible = false; r.userData.hidden = true; } S.roofHidden = hideRoof; }
   S.houseIn = inside;
   if (S.view === 'fp' && !S.drive) {
@@ -890,6 +896,7 @@ function drawMap(ctx, W, cx, cz, span, big) {
   ctx.fillStyle = 'rgba(80,60,40,.9)'; for (const h of HOUSES) ctx.fillRect(X(h.x0), Z(h.z0), Math.max(2, (h.x1 - h.x0) * k), Math.max(2, (h.z1 - h.z0) * k));
   if (big && typeof CITY !== 'undefined') { ctx.textAlign = 'center'; for (const l of CITY.labels) { if (span > 600 && !l.town && l.name !== 'Riera Seca') continue; ctx.save(); ctx.translate(X(l.x), Z(l.z)); if (l.vertical) ctx.rotate(-Math.PI / 2); ctx.font = l.place ? 'bold 12px Nunito, sans-serif' : '10px Nunito, sans-serif'; ctx.fillStyle = l.place ? '#ffe08a' : '#ffffff'; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.lineWidth = 3; ctx.strokeText(l.name, 0, 4); ctx.fillText(l.name, 0, 4); ctx.restore(); } for (const r of CITY.rooms) if (r.kind !== 'piso') { ctx.font = 'bold 9px Nunito'; ctx.fillStyle = '#ffb43a'; ctx.strokeText(r.name, X((r.x0 + r.x1) / 2), Z((r.z0 + r.z1) / 2)); ctx.fillText(r.name, X((r.x0 + r.x1) / 2), Z((r.z0 + r.z1) / 2)); } }
   else if (big) { ctx.font = 'bold 13px Nunito, sans-serif'; ctx.textAlign = 'center'; for (const p of POIS) { ctx.fillStyle = 'rgba(0,0,0,.55)'; const tw = ctx.measureText(p.name).width + 8; ctx.fillRect(X(p.x) - tw / 2, Z(p.z) - 10, tw, 18); ctx.fillStyle = '#fff'; ctx.fillText(p.name, X(p.x), Z(p.z) + 4); } }
+  ctx.fillStyle = '#4ab0ff'; for (const c of S.cars) if (c.hp > 0) { const cx2 = X(c.pos.x), cz2 = Z(c.pos.z); if (cx2 > -5 && cx2 < W + 5 && cz2 > -5 && cz2 < W + 5) ctx.fillRect(cx2 - 2.5, cz2 - 2.5, 5, 5); }
   for (const z of S.zombies) if (z.alive && z.state === 'chase') { ctx.fillStyle = '#ff4a3a'; ctx.beginPath(); ctx.arc(X(z.pos.x), Z(z.pos.z), 3, 0, 7); ctx.fill(); }
   const p = S.p; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(-p.yaw); ctx.fillStyle = '#9be36a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; const s = 9;
   ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.7, s * 0.7); ctx.lineTo(0, s * 0.3); ctx.lineTo(-s * 0.7, s * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
@@ -1118,9 +1125,8 @@ function carMesh(col) {
   for (const sz of [-1, 1]) { B(1.84, 0.22, 0.14, dk, 0, 0.44, sz * 2.17); for (const sx of [-0.6, 0.6]) B(0.34, 0.12, 0.05, toon(sz < 0 ? 0xf8f6e8 : 0xc81a1a, { emissive: sz < 0 ? 0x333322 : 0x330000 }), sx, 0.72, sz * 2.17); }
   B(0.6, 0.12, 0.05, chrome, 0, 0.5, -2.25);
   for (const sx of [-1, 1]) B(0.12, 0.08, 0.16, body, sx * 0.93, 1.04, -0.62);
-  flattenInto(g);
-  const wheels = [];
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const w = new THREE.Group(); w.position.set(sx * 0.82, 0.34, sz * 1.38); const t = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14), dk); t.rotation.z = Math.PI / 2; w.add(t); const r = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.25, 10), chrome); r.rotation.z = Math.PI / 2; w.add(r); g.add(w); wheels.push(w); w.userData.front = sz < 0; }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 12), dk); t.rotation.z = Math.PI / 2; t.position.set(sx * 0.82, 0.34, sz * 1.38); g.add(t); const r = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.25, 8), chrome); r.rotation.z = Math.PI / 2; r.position.set(sx * 0.82, 0.34, sz * 1.38); g.add(r); }
+  flattenInto(g); const wheels = [];
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
   return { g, wheels };
 }
@@ -1131,14 +1137,13 @@ function addCar(x, z, yaw, fuel, hp, col) {
   g.position.copy(c.pos); g.rotation.y = yaw; scene.add(g); carSolid(c, true); S.cars.push(c); return c;
 }
 function spawnCars() {
-  if (typeof CITY === 'undefined') return;
-  const want = 12, spawn = CITY.spawn; let tries = 0, near = 0;
-  while (S.cars.length < want && tries++ < 3000) {
-    const sp = near < 2 && spawn ? [spawn.x + R(-50, 50), spawn.z + R(-50, 50)] : pick(CITY.streetPts); const x = sp[0], z = sp[1];
-    if (S.cars.some(c => Math.hypot(c.pos.x - x, c.pos.z - z) < 25)) continue;
-    const t = new V3(x, getH(x, z), z); let ok = true; for (const o of [[0, 0], [2.4, 0], [-2.4, 0], [0, 2.4], [0, -2.4]]) { const q = new V3(x + o[0], t.y, z + o[1]); collide(q, 1.0, 1.4); if (q.distanceTo(new V3(x + o[0], t.y, z + o[1])) > 0.01) { ok = false; break; } }
-    if (!ok) continue; if (spawn && Math.hypot(x - spawn.x, z - spawn.z) < 50) near++;
-    addCar(x, z, pick([0, Math.PI / 2, Math.PI, -Math.PI / 2]) + R(-0.1, 0.1), near <= 1 && spawn && Math.hypot(x - spawn.x, z - spawn.z) < 50 ? R(35, 60) : undefined);
+  if (typeof CITY === 'undefined' || !CITY.carSpots) return;
+  const sp = CITY.spawn;
+  for (const [x, z, ang] of CITY.carSpots) {
+    const q = new V3(x, getH(x, z), z), t = q.clone(); collide(t, 0.8, 1.4); if (t.distanceTo(q) > 0.05) continue;
+    if (S.cars.some(c => Math.hypot(c.pos.x - x, c.pos.z - z) < 5)) continue;
+    const near = sp && Math.hypot(x - sp.x, z - sp.z) < 45, r = rand();
+    addCar(x, z, ang, near ? R(45, 70) : r < 0.3 ? 0 : R(8, 65), near ? 100 : R(45, 100));
   }
 }
 function nearCar(p, d = 3.0) { let best = null, bd = d; for (const c of S.cars) { const dd = Math.hypot(c.pos.x - p.pos.x, c.pos.z - p.pos.z); if (dd < bd) { bd = dd; best = c; } } return best; }
@@ -1285,7 +1290,7 @@ function clearWorld() {
   for (const z of S.zombies) { scene.remove(z.model); if (z.pool) scene.remove(z.pool); }
   for (const g of S.ground) scene.remove(g.mesh);
   for (const pc of S.built.slice()) destroyPiece(pc, true); S.built = []; for (const c of S.conts) if (c.gone) { c.gone = false; if (c.model) { c.model.visible = true; c.model.userData.gone = false; } if (c.box && BOXES.indexOf(c.box) < 0) { const b = c.box; BOXES.push(b); addToGrid(b, b.x0, b.z0, b.x1, b.z1); } }
-  stopPlacing(); closeBuildMenu();
+  stopPlacing(); closeBuildMenu(); renderer.clippingPlanes = []; S.clipOn = false;
   engineSound(false); S.drive = null; for (const c of S.cars) { scene.remove(c.mesh); carSolid(c, false); } S.cars = [];
   for (const t of S.throws) scene.remove(t.m); for (const f of S.fires) scene.remove(f.g); S.throws = []; S.fires = [];
   S.zombies = []; S.ground = []; S.kills = 0;
@@ -1303,7 +1308,7 @@ function startGame(sv) {
   S.clock = 0; S.over = false; S.cards = 0;
   fillContainers();
   S.cdoors = [];
-  if (typeof CITY !== 'undefined' && CITY.doors) for (const d of CITY.doors) { const r = rand(); let st = d.spawn ? 'closed' : d.shop ? (r < 0.25 ? 'open' : r < 0.6 ? 'closed' : r < 0.85 ? 'locked' : 'broken') : (r < 0.1 ? 'open' : r < 0.4 ? 'closed' : r < 0.9 ? 'locked' : 'broken'); S.cdoors.push(makeCDoor(d, st)); }
+  if (typeof CITY !== 'undefined' && CITY.doors) for (const d of CITY.doors) { const r = rand(); let st = d.spawn ? 'closed' : d.generic ? (r < 0.35 ? 'open' : r < 0.75 ? 'closed' : r < 0.92 ? 'locked' : 'broken') : d.shop ? (r < 0.25 ? 'open' : r < 0.6 ? 'closed' : r < 0.85 ? 'locked' : 'broken') : (r < 0.1 ? 'open' : r < 0.4 ? 'closed' : r < 0.9 ? 'locked' : 'broken'); S.cdoors.push(makeCDoor(d, st)); }
   if (typeof CITY !== 'undefined' && CITY.matSpots && !sv) { const mats = ['plank', 'plank', 'plank', 'scrap', 'nails', 'plank', 'scrap']; CITY.matSpots.forEach(([x, z], i) => dropGround(i === 0 ? mk('hammer') : mk(mats[i % mats.length], mats[i % mats.length] === 'nails' ? RI(8, 16) : 1), x, z)); }
   for (const [x, z] of LOOT_SPOTS) if (rand() < 0.22) dropGround(rollItem('floor'), x, z);
   if (typeof CITY !== 'undefined') for (let i = 0; i < 40; i++) { const sp = pick(CITY.streetPts); dropGround(rollItem('floor'), sp[0] + R(-3, 3), sp[1] + R(-3, 3)); }
@@ -1328,7 +1333,7 @@ function startGame(sv) {
   S.phase = 'game'; S.camYaw = Math.PI / 4; S.camYawT = S.camYaw; S.zoom = IS_TOUCH ? 0.9 : 1;
   $('menu').classList.add('hidden'); $('end').classList.add('hidden'); $('hud').classList.remove('hidden'); if (IS_TOUCH) $('touch').classList.remove('hidden');
   if (preview) preview.root.visible = false;
-  msg(sv ? `Día ${dayNum()} · ¡Bienvenido de vuelta, ${CR.name}!` : typeof CITY !== 'undefined' ? `Estás en La Orden del Friki. Busca comida, agua y materiales (${IS_TOUCH ? '🔨' : 'B'} para construir).` : 'Busca comida y agua en las casas. Evita a los zombis.', 4.5);
+  msg(sv ? `Día ${dayNum()} · ¡Bienvenido de vuelta, ${CR.name}!` : typeof CITY !== 'undefined' ? `Estás en La Orden del Friki. Fuera, en la avenida, hay coches con gasolina (🟦 en el mapa).` : 'Busca comida y agua en las casas. Evita a los zombis.', 4.5);
   if (S.view === 'fp' && !IS_TOUCH) requestLock();
 }
 function toMenu() {
@@ -1351,7 +1356,7 @@ function refreshContinue() { const sv = loadSave(); $('cont').classList.toggle('
 function updateGame(dt) {
   S.clock += dt;
   if (typeof CITY !== 'undefined' && CITY.update) CITY.update(S.time, dt);
-  if ((S.cullT = (S.cullT || 0) - dt) <= 0) { S.cullT = 0.5; const cp = camera.position; if (typeof CITY !== 'undefined' && CITY.cullTick) CITY.cullTick(cp); for (const g of S.ground) g.mesh.visible = Math.abs(g.pos.x - cp.x) + Math.abs(g.pos.z - cp.z) < 70; for (const b of S.built) b.mesh.visible = Math.abs(b.x - cp.x) + Math.abs(b.z - cp.z) < (b.city ? 80 : 160); }
+  if ((S.cullT = (S.cullT || 0) - dt) <= 0) { S.cullT = 0.5; const cp = camera.position; if (typeof CITY !== 'undefined' && CITY.cullTick) CITY.cullTick(cp); for (const g of S.ground) g.mesh.visible = Math.abs(g.pos.x - cp.x) + Math.abs(g.pos.z - cp.z) < 70; for (const b of S.built) b.mesh.visible = Math.abs(b.x - cp.x) + Math.abs(b.z - cp.z) < (b.city ? 80 : 160); for (const c of S.cars) c.mesh.visible = c === S.drive || Math.abs(c.pos.x - cp.x) + Math.abs(c.pos.z - cp.z) < 130; }
   respawnZombies(dt);
   saveT -= dt; if (saveT <= 0) { saveT = 20; saveGame(); }
   updatePlacing(); updateFire(dt); updateBase(dt); updateHordes(dt);
@@ -1403,7 +1408,7 @@ function setQuality(q) {
 function initMenu() {
   buildCreator(); doPreview();
   const opt = (attr, fn, def) => { let v = def; try { const s = localStorage.getItem('zm_' + attr); if (s !== null) v = +s; } catch (e) { } document.querySelectorAll(`[data-${attr}]`).forEach(el => { el.classList.toggle('sel', +el.dataset[attr] === v); el.onclick = () => { document.querySelectorAll(`[data-${attr}]`).forEach(x => x.classList.remove('sel')); el.classList.add('sel'); fn(+el.dataset[attr]); try { localStorage.setItem('zm_' + attr, el.dataset[attr]); } catch (e) { } }; }); fn(v); };
-  S.zCount = 40; opt('v', v => { S.view = v === 0 ? 'fp' : 'top'; }, 0); opt('q', v => setQuality(v), IS_TOUCH ? 1 : 2);
+  S.zCount = 150; opt('v', v => { S.view = v === 0 ? 'fp' : 'top'; }, 0); opt('q', v => setQuality(v), IS_TOUCH ? 1 : 2);
 }
 // bucle
 let last = performance.now();
