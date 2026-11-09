@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>La Orden: Zona Muerta</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#101418">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;height:100dvh;overflow:hidden;background:#101418;font-family:Nunito,system-ui,sans-serif;color:#fff;touch-action:none}
+#game canvas{display:block;position:fixed;inset:0}
+.lg{font-family:'Luckiest Guy',Impact,sans-serif;letter-spacing:1px}
+.hidden{display:none!important}
+button{font-family:inherit;color:inherit}
+/* ---- menú / creador ---- */
+#menu{position:fixed;inset:0;z-index:20;display:flex;gap:16px;padding:calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));background:linear-gradient(90deg,rgba(12,16,14,.92) 0%,rgba(12,16,14,.75) 40%,rgba(12,16,14,0) 62%)}
+.mcol{display:flex;flex-direction:column;gap:8px;width:min(470px,58vw);height:100%;min-height:0}
+#menu h1{font-size:clamp(28px,5vw,54px);line-height:.9;color:#9be36a;text-shadow:0 4px 0 #2a4a1a,0 8px 18px rgba(0,0,0,.6)}
+#menu h1 small{display:block;font-size:.42em;color:#fff;text-shadow:0 3px 0 #2a4a1a}
+.creator{flex:1;min-height:0;overflow-y:auto;background:rgba(255,255,255,.06);border-radius:14px;padding:10px 12px;touch-action:pan-y}
+.row{margin-bottom:9px}
+.row .lb{font-size:11px;font-weight:900;text-transform:uppercase;opacity:.75;margin-bottom:4px}
+.sw{display:flex;flex-wrap:wrap;gap:5px}
+.c{width:28px;height:28px;border-radius:50%;border:3px solid rgba(255,255,255,.15);cursor:pointer}
+.c.sel{border-color:#9be36a;box-shadow:0 0 0 2px rgba(155,227,106,.4)}
+.t{padding:5px 10px;border-radius:9px;background:rgba(255,255,255,.1);border:2px solid transparent;font-weight:900;font-size:12px;cursor:pointer}
+.t.sel{border-color:#9be36a;background:rgba(155,227,106,.18)}
+#pname{flex:1;min-width:0;width:auto;padding:8px 10px;border-radius:9px;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:#fff;font-weight:900;font-size:16px;font-family:inherit;user-select:text;-webkit-user-select:text}
+.mrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#play.small{font-size:clamp(16px,2.4vw,22px);padding:9px 16px 5px}
+#play,#cont{white-space:nowrap}
+#play{font-family:'Luckiest Guy',Impact,sans-serif;font-size:clamp(24px,3.8vw,36px);padding:10px 30px 6px;border-radius:14px;border:none;background:linear-gradient(180deg,#b6f07a,#5fb83a);color:#16300c;box-shadow:0 5px 0 #2f6a1c,0 10px 22px rgba(0,0,0,.4);cursor:pointer;letter-spacing:2px;margin-left:auto}
+#rnd{font-size:20px;padding:6px 12px;border-radius:12px;border:none;background:rgba(255,255,255,.15);cursor:pointer}
+.help{font-size:11.5px;opacity:.7;line-height:1.45}
+/* ---- HUD ---- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+#vign{position:absolute;inset:0;pointer-events:none}
+#dmgfx{position:absolute;inset:0;box-shadow:inset 0 0 140px 40px rgba(200,0,0,.75);opacity:0;transition:opacity .3s}
+#clock{position:absolute;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));background:rgba(0,0,0,.5);padding:6px 12px;border-radius:10px;font-weight:900;font-size:15px}
+#status{position:absolute;top:calc(48px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));display:flex;flex-direction:column;gap:4px;font-weight:900;font-size:13px}
+#status div{background:rgba(120,20,20,.7);padding:3px 9px;border-radius:8px;animation:pulse 1.4s infinite}
+#status div.ok{background:rgba(0,0,0,.45);animation:none}
+@keyframes pulse{50%{opacity:.65}}
+#stats{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom));width:min(250px,42vw);background:rgba(0,0,0,.45);padding:8px 10px;border-radius:12px}
+.st{display:flex;align-items:center;gap:7px;margin:3px 0;font-size:13px;font-weight:900}
+.st b{width:20px;text-align:center}
+.bar{flex:1;height:12px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px;transition:width .2s}
+#eq{position:absolute;right:calc(12px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:flex-end;pointer-events:auto}
+#eqslot{width:150px;background:rgba(0,0,0,.5);border-radius:12px;padding:7px 10px;font-weight:900;font-size:13px}
+#eqslot .ic{font-size:24px}
+#eqslot .dur{height:5px;border-radius:3px;background:rgba(255,255,255,.15);margin-top:4px;overflow:hidden}
+#eqslot .dur i{display:block;height:100%;background:#9be36a}
+#binv{width:62px;height:62px;border-radius:14px;border:3px solid rgba(255,255,255,.5);background:rgba(0,0,0,.5);font-size:26px;cursor:pointer}
+#mm{position:absolute;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));width:150px;height:150px;border-radius:12px;border:3px solid rgba(255,255,255,.75);pointer-events:auto}
+#mm.big{width:min(86vmin,520px);height:min(86vmin,520px);top:50%;right:50%;transform:translate(50%,-50%);z-index:13}
+#zn{position:absolute;top:calc(166px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));background:rgba(0,0,0,.5);padding:3px 10px;border-radius:8px;font-weight:900;font-size:13px}
+#prompt{position:absolute;left:50%;top:64%;transform:translateX(-50%);background:rgba(0,0,0,.65);padding:6px 14px;border-radius:9px;font-weight:900;font-size:15px;white-space:nowrap;pointer-events:auto;cursor:pointer}
+#prompt kbd{background:#fff;color:#000;border-radius:4px;padding:0 6px;margin-right:6px}
+#msg{position:absolute;left:50%;top:18%;transform:translateX(-50%);font-size:clamp(17px,3vw,26px);text-shadow:0 2px 0 #000,0 0 12px rgba(0,0,0,.7);text-align:center;width:max-content;max-width:92vw;transition:opacity .3s;font-weight:900}
+#nums{position:absolute;inset:0;overflow:hidden}
+.dn{position:absolute;font-family:'Luckiest Guy',Impact,sans-serif;font-size:22px;text-shadow:0 2px 0 #000;transform:translate(-50%,-50%)}
+#cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.5)}
+#aim{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 3px #000}
+/* ---- creador ---- */
+.sec{font-family:'Luckiest Guy',Impact,sans-serif;font-size:15px;letter-spacing:1px;color:#9be36a;margin:8px 0 6px;border-bottom:1px solid rgba(155,227,106,.25);padding-bottom:3px}
+.sec:first-child{margin-top:0}
+#pzoom{position:absolute;right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));display:flex;gap:6px;align-items:center;z-index:3}
+#pzoom .hint{font-size:11px;opacity:.6;font-weight:800;margin-right:4px}
+#pzoom .t.sel{border-color:#9be36a}
+#fshelp{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;padding:20px}
+#fshelp>div{max-width:440px;background:#161c18;border:2px solid rgba(155,227,106,.4);border-radius:14px;padding:18px;font-size:14px;line-height:1.45}
+#fshelp h3{font-family:'Luckiest Guy',Impact,sans-serif;color:#9be36a;font-size:20px;margin-bottom:8px;letter-spacing:1px}
+#fshelp p{margin:6px 0;opacity:.9}
+#fshelp .eb,#fshelp a.eb{display:inline-block;margin-top:8px;text-decoration:none;color:#16300c;background:#9be36a;padding:8px 14px;border-radius:10px;font-weight:900;border:none;cursor:pointer}
+/* ---- construcción ---- */
+#build{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;pointer-events:auto}
+#bplace{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:12;pointer-events:auto;background:rgba(18,22,20,.88);border:2px solid rgba(155,227,106,.45);border-radius:12px;padding:8px 12px;text-align:center;font-weight:900;font-size:14px}
+#bplace small{opacity:.7;font-weight:700}
+#bplace .brow{display:flex;gap:6px;justify-content:center;margin-top:6px}
+body:not(.touch) #bplace .brow{display:none}
+body.touch #bplace{bottom:auto;top:calc(64px + env(safe-area-inset-top))}
+#tUse{width:64px;height:64px;right:calc(200px + env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom));font-size:28px;background:rgba(155,227,106,.35);border-color:#9be36a}
+#fsb{position:absolute;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(calc(-50% + 58px));pointer-events:auto;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:3px 9px;font-weight:900;font-size:12px;cursor:pointer}
+#fsm{position:absolute;top:12px;right:12px;z-index:5;background:rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.4);color:#fff;border-radius:10px;padding:6px 12px;font-weight:900;cursor:pointer;font-size:14px}
+#bbuild{width:46px;height:46px;right:calc(152px + env(safe-area-inset-right));bottom:calc(190px + env(safe-area-inset-bottom));font-size:20px}
+#cont{font-family:'Luckiest Guy',Impact,sans-serif;font-size:clamp(18px,2.6vw,24px);padding:8px 18px 4px;border-radius:14px;border:none;background:linear-gradient(180deg,#ffe07a,#e0a83a);color:#3a2408;box-shadow:0 5px 0 #8a5a1c;cursor:pointer;letter-spacing:1px;line-height:1}
+#cont small{display:block;font-family:system-ui,sans-serif;font-size:11px;letter-spacing:0;opacity:.8;font-weight:800}
+/* ---- inventario ---- */
+#inv{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:14;display:flex;gap:10px;pointer-events:auto;max-width:96vw}
+.pan{width:min(330px,46vw);max-height:min(460px,72vh);background:rgba(18,22,20,.94);border:2px solid rgba(155,227,106,.4);border-radius:14px;display:flex;flex-direction:column}
+.pan h3{font-size:15px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pan h3 small{opacity:.7;font-size:12px}
+.lst{overflow-y:auto;padding:6px;flex:1;touch-action:pan-y}
+.it{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:9px;background:rgba(255,255,255,.05);margin-bottom:4px;font-size:13px;font-weight:900}
+.it .ic{font-size:20px;width:26px;text-align:center}
+.it .nm{flex:1;min-width:0}
+.it .nm small{display:block;font-size:10.5px;opacity:.65;font-weight:700}
+.it.eq{outline:2px solid #9be36a}
+.ib{padding:5px 8px;border-radius:7px;border:none;background:rgba(155,227,106,.25);font-weight:900;font-size:12px;cursor:pointer}
+.ib.x{background:rgba(255,255,255,.1)}
+.empty{opacity:.55;font-size:13px;padding:12px;text-align:center}
+.pb.x{background:rgba(255,255,255,.15);color:#fff}
+.pb{padding:6px 12px;border-radius:8px;border:none;background:#9be36a;color:#16300c;font-weight:900;font-size:12px;cursor:pointer}
+/* ---- fin ---- */
+#end{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(40,0,0,.72);text-align:center;gap:10px;padding:20px}
+#end h2{font-size:clamp(36px,7vw,72px);color:#ff5a4a;text-shadow:0 5px 0 #400}
+#end p{font-weight:900;font-size:17px;line-height:1.5}
+.eb{font-family:'Luckiest Guy',Impact,sans-serif;font-size:24px;padding:10px 28px 6px;border-radius:12px;border:none;background:#9be36a;color:#16300c;cursor:pointer;box-shadow:0 4px 0 #2f6a1c}
+#confirm,#lock{position:fixed;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);text-align:center}
+#confirm>div,#lock>div{background:rgba(18,22,20,.95);border:2px solid rgba(155,227,106,.4);padding:18px 24px;border-radius:16px;font-weight:900}
+#confirm p{margin:8px 0 14px}
+#lock{z-index:12;cursor:pointer;background:rgba(0,0,0,.3)}
+#quit{position:absolute;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);pointer-events:auto;background:rgba(0,0,0,.45);border:none;color:#fff;font-weight:900;padding:4px 10px;border-radius:8px;font-size:12px;cursor:pointer}
+/* ---- táctil ---- */
+#touch{position:fixed;inset:0;z-index:11;pointer-events:none}
+#lookz{position:absolute;right:0;top:0;width:55%;height:100%;pointer-events:auto}
+#tView{width:46px;height:46px;right:calc(96px + env(safe-area-inset-right));bottom:calc(190px + env(safe-area-inset-bottom));font-size:18px}
+#joyz{position:absolute;left:0;bottom:0;width:50%;height:70%;pointer-events:auto}
+#joy{position:absolute;width:116px;height:116px;border-radius:50%;background:rgba(255,255,255,.1);border:3px solid rgba(255,255,255,.35);left:calc(40px + env(safe-area-inset-left));bottom:calc(150px + env(safe-area-inset-bottom));pointer-events:none}
+#joy i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px;border-radius:50%;background:rgba(255,255,255,.7)}
+.tb{position:absolute;pointer-events:auto;border-radius:50%;background:rgba(0,0,0,.4);border:3px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900}
+.tb.on{background:rgba(155,227,106,.45)}
+#tAtk{width:86px;height:86px;right:calc(30px + env(safe-area-inset-right));bottom:calc(90px + env(safe-area-inset-bottom));background:rgba(200,50,40,.45);font-size:32px}
+#tRun{width:56px;height:56px;right:calc(130px + env(safe-area-inset-right));bottom:calc(80px + env(safe-area-inset-bottom))}
+#tRel{width:50px;height:50px;right:calc(130px + env(safe-area-inset-right));bottom:calc(150px + env(safe-area-inset-bottom));font-size:18px}
+#tRot{width:46px;height:46px;right:calc(40px + env(safe-area-inset-right));bottom:calc(190px + env(safe-area-inset-bottom));font-size:18px}
+body.touch #eq{bottom:auto;right:auto;top:calc(8px + env(safe-area-inset-top));left:calc(170px + env(safe-area-inset-left))}
+body.touch #binv{width:46px;height:46px;font-size:20px}
+body.touch #eqslot{width:auto;min-width:110px;padding:4px 8px}
+body.touch #eqslot .ic{display:none}
+body.touch #stats{width:min(210px,38vw);padding:6px 8px}
+body.touch .st{font-size:11px;margin:2px 0}
+body.touch .help.pc{display:none}
+@media (max-height:520px){.mcol{overflow-y:auto;touch-action:pan-y}.creator{flex:none;overflow:visible}#menu h1{font-size:28px}.row{margin-bottom:6px}.c{width:24px;height:24px}body.touch #mm{width:110px;height:110px}body.touch #mm.big{width:min(86vmin,520px);height:min(86vmin,520px);top:50%;right:50%;transform:translate(50%,-50%);z-index:13}
+#zn{top:calc(124px + env(safe-area-inset-top))}#eqslot{width:120px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="hud" class="hidden">
+  <div id="vign"></div>
+  <div id="dmgfx"></div>
+  <div id="nums"></div>
+  <div id="aim" class="hidden"></div>
+  <div id="cross" class="hidden"></div>
+  <div id="clock">Día 1 · 07:00</div>
+  <div id="status"></div>
+  <button id="quit">✕ Salir</button><button id="fsb" title="Pantalla completa">⛶</button>
+  <canvas id="mm" width="300" height="300"></canvas>
+  <div id="zn">🧟 0</div>
+  <div id="msg"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="stats">
+    <div class="st"><b>❤️</b><div class="bar"><i id="bHp" style="background:#e8423a"></i></div></div>
+    <div class="st"><b>🍗</b><div class="bar"><i id="bFood" style="background:#f0a030"></i></div></div>
+    <div class="st"><b>💧</b><div class="bar"><i id="bWater" style="background:#3aa8f0"></i></div></div>
+    <div class="st"><b>⚡</b><div class="bar"><i id="bSta" style="background:#f0e04a"></i></div></div>
+  </div>
+  <div id="eq"><div id="eqslot"></div><button id="binv">🎒</button></div>
+</div>
+
+<div id="inv" class="hidden">
+  <div class="pan"><h3><span>🎒 Tu mochila</span><small id="wt"></small><button class="pb x" id="invx">✕ Cerrar</button></h3><div class="lst" id="invl"></div></div>
+  <div class="pan" id="contp"><h3><span id="contn">Contenedor</span><span style="display:flex;gap:5px"><button class="pb x hidden" id="dism">🔨 Desmontar</button><button class="pb" id="takeall">Coger todo</button></span></h3><div class="lst" id="contl"></div></div>
+</div>
+
+<div id="build" class="hidden"><div class="pan" style="width:min(400px,92vw);max-height:min(520px,80vh)"><h3><span>🔨 Construir tu base</span><button class="pb x" id="buildx">✕ Cerrar</button></h3><div class="lst" id="buildl"></div></div></div>
+<div id="bplace" class="hidden"><div id="bhint"></div><div class="brow"><button class="pb" id="bok">✔ Colocar</button><button class="pb x" id="brot">⟳ Girar</button><button class="pb x" id="bcan">✕</button></div></div>
+
+<div id="touch" class="hidden">
+  <div class="tb" id="bbuild">🔨</div>
+  <div class="tb hidden" id="tUse">✋</div>
+  <div id="lookz"></div>
+  <div id="joyz"></div>
+  <div id="joy"><i></i></div>
+  <div class="tb" id="tAtk">👊</div>
+  <div class="tb" id="tRun">🏃</div>
+  <div class="tb" id="tRel">↻</div>
+  <div class="tb" id="tRot">🔄</div>
+  <div class="tb" id="tView">👁️</div>
+</div>
+
+<div id="menu">
+  <button id="fsm">⛶ Pantalla completa</button>
+  <div id="pzoom"><span class="hint">Arrastra para girar</span><div class="t sel" data-zoom="0">🧍 Cuerpo</div><div class="t" data-zoom="1">🙂 Cara</div></div>
+  <div class="mcol">
+    <h1 class="lg">LA ORDEN<small>ZONA MUERTA</small></h1>
+    <div class="creator" id="creator"></div>
+    <div class="mrow"><input id="pname" maxlength="16" placeholder="Nombre del superviviente"><button id="rnd" title="Aleatorio">🎲</button></div>
+    <div class="mrow"><span class="help" style="font-weight:900">CÁMARA</span><div class="t" data-v="0">1ª persona</div><div class="t" data-v="1">Desde arriba</div><span class="help" style="font-weight:900;margin-left:6px">GRÁFICOS</span><div class="t" data-q="0">Rápido</div><div class="t" data-q="1">Bonito</div><div class="t" data-q="2">Ultra</div></div>
+    <div class="mrow"><div class="help pc">WASD mover · Ratón mirar · Clic atacar · Shift correr · E buscar/recoger/beber · Tab inventario · C crear objetos · M mapa · B construir · E subir/bajar del coche (Espacio frena) · X desmontar · R recargar/girar · V cambiar cámara (1ª persona / desde arriba)</div><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><button id="cont" class="hidden"></button><button id="play">SOBREVIVIR</button></div></div>
+  </div>
+</div>
+
+<div id="fshelp" class="hidden"><div><h3>⛶ Pantalla completa</h3><div id="fstext"></div><button class="eb" id="fsclose" style="background:rgba(255,255,255,.15);color:#fff">Cerrar</button></div></div>
+<div id="confirm" class="hidden"><div><div class="lg" style="font-size:28px;color:#ff8a6a">¿SALIR AL MENÚ?</div><p>La partida se guarda: podrás continuarla desde el menú.</p><button class="eb" id="cno">SEGUIR JUGANDO</button> <button class="eb" id="cyes" style="background:#c8402a;color:#fff;box-shadow:0 4px 0 #6a1a10">SALIR</button></div></div>
+<div id="lock" class="hidden"><div><div class="lg" style="font-size:28px;color:#9be36a">HAZ CLIC PARA JUGAR</div>Esc para liberar el ratón</div></div>
+<div id="end" class="hidden">
+  <h2 class="lg">HAS MUERTO</h2>
+  <p id="endp"></p>
+  <button class="eb" id="again">VOLVER A EMPEZAR</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script>window.MAP_MODE = "city";</script>
+<script src="js/core.js"></script>
+<script src="js/chars.js"></script>
+<script src="js/human.js"></script>
+<script src="js/models.js"></script>
+<script src="js/city.js"></script>
+<script src="js/survival.js"></script>
+</body>
+</html>

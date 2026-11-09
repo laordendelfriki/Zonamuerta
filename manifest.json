@@ -1,0 +1,1 @@
+{"name": "La Orden: Zona Muerta", "short_name": "Zona Muerta", "start_url": "./index.html", "display": "fullscreen", "orientation": "landscape", "background_color": "#101418", "theme_color": "#101418", "icons": [{"src": "icon192.png", "sizes": "192x192", "type": "image/png"}, {"src": "icon512.png", "sizes": "512x512", "type": "image/png"}]}
