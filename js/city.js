@@ -637,7 +637,7 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
   ctx.fillStyle = '#8a8478'; ctx.fillRect(X(L0 - 10), X(L0 - 10), (L1 - L0 + 20) * k, (L1 - L0 + 20) * k);
   ctx.fillStyle = '#6a9a4a'; ctx.fillRect(X(-234), X(BZ[BZ.length - 1][0]), 404 * k, (200 - BZ[BZ.length - 1][0]) * k);
   ctx.fillStyle = '#c8b8a0'; for (const sg of segs) { const a = W2(sg, -sg.w / 2, 0), b = W2(sg, sg.w / 2, sg.D); ctx.fillRect(X(Math.min(a[0], b[0])), X(Math.min(a[1], b[1])), Math.abs(a[0] - b[0]) * k, Math.abs(a[1] - b[1]) * k); }
-  ctx.fillStyle = '#ffb43a'; for (const r of CITY.rooms) if (r.kind !== 'piso') ctx.fillRect(X(r.x0), X(r.z0), (r.x1 - r.x0) * k, (r.z1 - r.z0) * k);
+  ctx.fillStyle = '#ffb43a'; for (const r of CITY.rooms) if (r.kind !== 'piso' && !(r.sg.room && r.sg.room.generic)) ctx.fillRect(X(r.x0), X(r.z0), (r.x1 - r.x0) * k, (r.z1 - r.z0) * k);
   ctx.fillStyle = '#4a4c52'; for (let i = 0; i < XS.length; i++) ctx.fillRect(X(XS[i] - XW[i] / 2), X(L0 - 5), XW[i] * k, (L1 - L0 + 10) * k); for (let j = 0; j < ZS.length; j++) ctx.fillRect(X(L0 - 5), X(ZS[j] - ZW[j] / 2), (L1 - L0 + 10) * k, ZW[j] * k);
   ctx.fillStyle = '#5a4a3a'; ctx.fillRect(X(148), X(L0 - 10), 4 * k, (L1 - L0 + 20) * k);
 })();
