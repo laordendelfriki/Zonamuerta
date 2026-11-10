@@ -126,6 +126,7 @@ function renderTalk() {
   $('npcn').innerHTML = `${d.name}<small>${d.role}</small>`; $('npcb').innerHTML = body; $('npcbt').innerHTML = btn.map(([k, t]) => `<button class="pb ${k === 'bye' ? 'x' : ''}" data-a="${k}">${t}</button>`).join('');
 }
 function talkAction(a) {
+  if (talkN && talkN.gang) return gangAction(talkN.gang, a);
   const n = talkN, p = S.p; if (!n) return; const q = n.def.quest;
   if (a === 'bye') { closeTalk(); return; }
   if (a === 'accept') { n.quest = 1; n.qBase = S.kills; S.track = n.def.id; S._qt = null; if (q.type === 'fetch') placeQuestItem(n); msg('📜 Misión aceptada: ' + n.def.name + ' — sigue la guía amarilla del minimapa', 2.6); sfx('pick', 0.8); }
@@ -145,8 +146,8 @@ function talkAction(a) {
 $('npcp').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.a) talkAction(b.dataset.a); });
 // ---------- comercio con chapas ----------
 function restock(n) { const day = dayNum(); if (n.stockDay === day) return; n.stockDay = day; n.stock = []; const list = STOCK[n.def.trade] || STOCK.food; for (let i = 0; i < 7; i++) { const id = pick(list); n.stock.push(mk(id, ITEMS[id].stack ? (id === 'ammo9' ? 12 : id === 'shells' ? 5 : id === 'nails' ? 15 : 3) : 1)); } }
-function priceOf(it, buy) { const v = val(it.id) * it.n * (it.dur !== undefined ? 0.5 + 0.5 * it.dur / MELEE[ITEMS[it.id].melee].dur : 1); return Math.max(1, Math.round(buy ? v * 1.25 : v * 0.6)); }
-function openTrade(n) { restock(n); talkN = n; $('npcp').classList.add('hidden'); $('trade').classList.remove('hidden'); renderTrade(); }
+function priceOf(it, buy) { if (buy && S.tradeMul) return Math.max(1, Math.round(val(it.id) * it.n * (it.dur !== undefined ? 0.5 + 0.5 * it.dur / MELEE[ITEMS[it.id].melee].dur : 1) * 1.25 * S.tradeMul)); const v = val(it.id) * it.n * (it.dur !== undefined ? 0.5 + 0.5 * it.dur / MELEE[ITEMS[it.id].melee].dur : 1); return Math.max(1, Math.round(buy ? v * 1.25 : v * 0.6)); }
+function openTrade(n) { S.tradeMul = n.gang ? n.mul : 0; restock(n); talkN = n; $('npcp').classList.add('hidden'); $('trade').classList.remove('hidden'); renderTrade(); }
 function renderTrade() {
   const n = talkN, p = S.p; if (!n) return; const caps = countItem(p, 'caps');
   $('trn').innerHTML = `🪙 Comerciar con ${n.def.name}<small>Tienes ${caps} chapas</small>`;
@@ -155,7 +156,7 @@ function renderTrade() {
 }
 $('trade').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return; const n = talkN, p = S.p;
-  if (b.id === 'trx') { closeTalk(); return; } if (b.id === 'trback') { $('trade').classList.add('hidden'); $('npcp').classList.remove('hidden'); renderTalk(); return; }
+  if (b.id === 'trx') { closeTalk(); return; } if (b.id === 'trback') { $('trade').classList.add('hidden'); $('npcp').classList.remove('hidden'); if (n && n.gang) renderParley(n.gang); else renderTalk(); return; }
   if (b.dataset.s !== undefined) { const it = p.inv[+b.dataset.s]; if (!it) return; const pr = priceOf(it, false); p.inv.splice(p.inv.indexOf(it), 1); if (p.eq === it) p.eq = null; n.stock.push(it); addItem(p, mk('caps', pr)); sfx('pick', 0.7); }
   if (b.dataset.b !== undefined) { const it = n.stock[+b.dataset.b]; if (!it) return; const pr = priceOf(it, true); if (countItem(p, 'caps') < pr) return; takeItems(p, 'caps', pr); n.stock.splice(n.stock.indexOf(it), 1); addItem(p, it); sfx('pick', 0.9); }
   S.dirty = true; renderTrade(); saveSoon();
@@ -164,10 +165,10 @@ $('trade').addEventListener('click', e => {
 function nearNPC(p, d = 2.6) { let best = null, bd = d; for (const n of S.npcs) { if (!n.alive) continue; const dd = Math.hypot(n.pos.x - p.pos.x, n.pos.z - p.pos.z); if (dd < bd) { bd = dd; best = n; } } return best; }
 function hurtNPC(n, dmg) { if (!n.alive) return; n.hp -= dmg; burst(new V3(n.pos.x, n.pos.y + 1.2, n.pos.z), 0xb01818, 6, 3, 0.4); if (n.hp <= 0) { n.alive = false; n.hp = 0; n.deadT = 0; msg(`💀 ${n.def.name} ha muerto…`, 3); sfx('hurt', 1); n.label.visible = false; saveSoon(); } else if (n.state !== 'home' && Math.random() < 0.2) msg(`¡${n.def.name} necesita ayuda!`, 1.2); }
 function npcFight(n, dt, guardPos, radius) {
-  let best = null, bd = radius; for (const z of S.zombies) { if (!z.alive) continue; const d = z.pos.distanceTo(guardPos || n.pos); if (d < bd) { bd = d; best = z; } }
+  let best = null, bd = radius; for (const z of S.zombies) { if (!z.alive || (z.human && !gangHostile(z))) continue; const d = z.pos.distanceTo(guardPos || n.pos); if (d < bd) { bd = d; best = z; } }
   if (!best) return null;
   const d = best.pos.distanceTo(n.pos), gun = n.def.gun && (n.def.id !== 'mario' || n.gotGun);
-  if (gun && d < 16 && d > 2.2) { if (n.atkCd <= 0) { n.atkCd = 0.9; n.swing = 0.12; const dmg = 28; hurtZombie(best, dmg * R(0.8, 1.2), n.pos, 1); sfxAt('shot', n.pos); emitNoise(n.pos, 35); tracer(new V3(n.pos.x, n.pos.y + 1.45, n.pos.z), new V3(best.pos.x, best.pos.y + 1.3, best.pos.z)); } return { face: best, move: null }; }
+  if (gun && d < 16 && d > 2.2) { if (n.atkCd <= 0) { n.atkCd = 0.9; n.swing = 0.12; const dmg = 28; hurtZombie(best, dmg * R(0.8, 1.2), n.pos, 1, true); sfxAt('shot', n.pos); emitNoise(n.pos, 35); tracer(new V3(n.pos.x, n.pos.y + 1.45, n.pos.z), new V3(best.pos.x, best.pos.y + 1.3, best.pos.z)); } return { face: best, move: null }; }
   if (d < 1.4) { if (n.atkCd <= 0) { n.atkCd = 0.9; n.swing = 0.32; n.hitT = 0.13; n.hitZ = best; } return { face: best, move: null }; }
   return { face: best, move: best.pos };
 }
@@ -188,7 +189,7 @@ function updateNPCs(dt) {
     if (n.state === 'home' && n.hp < 100) n.hp = 100;
     if (!n.alive) { n.deadT = (n.deadT || 0) + dt; n.model.position.copy(n.pos); n.model.rotation.x = -Math.min(1, n.deadT * 2.5) * Math.PI / 2; n.model.visible = cd < 120; continue; }
     if (n.atkCd > 0) n.atkCd -= dt; if (n.swing > 0) n.swing -= dt;
-    if (n.hitT > 0) { n.hitT -= dt; if (n.hitT <= 0 && n.hitZ && n.hitZ.alive && n.hitZ.pos.distanceTo(n.pos) < 1.8) { hurtZombie(n.hitZ, 22 * R(0.85, 1.15), n.pos, 3); sfxAt('thud', n.pos); } }
+    if (n.hitT > 0) { n.hitT -= dt; if (n.hitT <= 0 && n.hitZ && n.hitZ.alive && n.hitZ.pos.distanceTo(n.pos) < 1.8) { hurtZombie(n.hitZ, 22 * R(0.85, 1.15), n.pos, 3, true); sfxAt('thud', n.pos); } }
     let act = null, spd = 0;
     if (n.state === 'follow') {
       const dd = n.pos.distanceTo(p.pos);
@@ -248,4 +249,4 @@ function campJob(n, dt) {
   const add = id => { if (box.items.length < 24) { box.items.push(mk(id, ITEMS[id].stack ? RI(2, 5) : 1)); if (pIn) msg(`📦 ${n.def.name} ha dejado ${ITEMS[id].ic} ${ITEMS[id].n} en el almacén`, 2); } };
   if (sk === 'medic') add('bandage'); else if (sk === 'cook') add('stew'); else if (sk === 'farmer') add('veg'); else if (sk === 'mechanic') add(rand() < 0.5 ? 'gas' : 'scrap'); else if (sk === 'scavenger') add(pick(['plank', 'nails', 'rag', 'rope', 'beans', 'water', 'scrap', 'stick', 'ammo9'])); else if (sk === 'trader') add('caps'); else if (sk === 'builder') add(rand() < 0.5 ? 'plank' : 'nails');
 }
-function npcSaveData() { return S.npcs.map(n => ({ id: n.def.id, state: n.state, x: +n.pos.x.toFixed(1), z: +n.pos.z.toFixed(1), hp: Math.round(n.hp), quest: n.quest, qBase: n.qBase, home: n.home, stay: n.stay ? [+n.stay.x.toFixed(1), +n.stay.z.toFixed(1)] : null, gotGun: !!n.gotGun, qSpot: n.qSpot || null })); }
+function npcSaveData() { return S.npcs.map(n => ({ id: n.def.id, m: n.met ? 1 : 0, state: n.state, x: +n.pos.x.toFixed(1), z: +n.pos.z.toFixed(1), hp: Math.round(n.hp), quest: n.quest, qBase: n.qBase, home: n.home, stay: n.stay ? [+n.stay.x.toFixed(1), +n.stay.z.toFixed(1)] : null, gotGun: !!n.gotGun, qSpot: n.qSpot || null })); }

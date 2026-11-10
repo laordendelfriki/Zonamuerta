@@ -209,6 +209,50 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
   const scol = (sg, u0, v0, u1, v1, y0, y1) => { const a = W2(sg, u0, v0), b = W2(sg, u1, v1); addBox(Math.min(a[0], b[0]), Y + y0, Math.min(a[1], b[1]), Math.max(a[0], b[0]), Y + y1, Math.max(a[1], b[1])); };
   const geoBox = new THREE.BoxGeometry(1, 1, 1), _e = new THREE.Euler(), _m2 = new THREE.Matrix4();
   const rbx = (M, x, y, z, w, h, d, col, rx = 0, ry = 0, rz = 0, geo = geoBox) => { m4.compose(ps.set(x, y, z), q.setFromEuler(_e.set(rx, ry, rz)), sc.set(w, h, d)); M.geo(geo, m4, col); };
+
+  // ---------- muebles detallados: una geometría por tipo y muchas copias (instancias) ----------
+  const FPROTO = {}, FCELL = new Map(), _fe = new THREE.Euler(0, 0, 0, 'YXZ'), FCS = 56;
+  const FM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.84, metalness: 0.02, envMapIntensity: 0.2 });
+  // el color de la copia solo tiñe las partes grises/blancas (telas), no la madera ni el metal
+  FM.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', 'vColor = min(color.xyz * 1.75 + 0.015, vec3(1.0));\n#ifdef USE_INSTANCING_COLOR\n{ float gs = step(abs(color.r - color.g) + abs(color.g - color.b), 0.012); vColor = mix(vColor, vColor * instanceColor.xyz, gs); }\n#endif'); };
+  { const geoSoft = new THREE.BoxGeometry(1, 1, 1, 4, 3, 4).toNonIndexed(), gp = geoSoft.attributes.position, gn = geoSoft.attributes.normal, v3 = new THREE.Vector3();
+    for (let i = 0; i < gp.count; i++) { v3.fromBufferAttribute(gp, i); const k = (1 - 0.3 * Math.pow(v3.length() / 0.866, 3)) / 0.942; v3.multiplyScalar(k); gp.setXYZ(i, v3.x, v3.y, v3.z); v3.set(Math.pow(Math.abs(v3.x * 2), 3) * Math.sign(v3.x), Math.pow(Math.abs(v3.y * 2), 3) * Math.sign(v3.y), Math.pow(Math.abs(v3.z * 2), 3) * Math.sign(v3.z)).normalize(); gn.setXYZ(i, v3.x, v3.y, v3.z); }
+    const geoC = new THREE.CylinderGeometry(1, 1, 1, 10), geoB = new THREE.BoxGeometry(1, 1, 1), e2 = new THREE.Euler();
+    const P = name => { const M = new Merger(), put = (geo, x, y, z, w, h, d, c, rx, ry, rz) => { m4.compose(ps.set(x, y, z), q.setFromEuler(e2.set(rx || 0, ry || 0, rz || 0)), sc.set(w, h, d)); M.geo(geo, m4, c); };
+      const o = { b: (x, y, z, w, h, d, c, rx, ry, rz) => { put(geoB, x, y, z, w, h, d, c, rx, ry, rz); return o; }, s: (x, y, z, w, h, d, c, rx, ry, rz) => { put(geoSoft, x, y, z, w, h, d, c, rx, ry, rz); return o; }, c: (x, y, z, r, h, c, rx, rz) => { put(geoC, x, y, z, r, h, r, c, rx, 0, rz); return o; },
+        legs: (hx, hz, h, t, c) => { for (const a of [-1, 1]) for (const b of [-1, 1]) put(geoB, a * hx, h / 2, b * hz, t, h, t, c); return o; }, end: () => { FPROTO[name] = M.mesh(FM, false).geometry; } }; return o; };
+    const WD = 0x7a5638, WD2 = 0x5c3f28, WL = 0xb89468, DK = 0x2a2623, MT = 0x8a8c90, CH = 0x3a3c40, W = 0xffffff, G1 = 0xe2e2e2, G2 = 0xc6c6c6;
+    P('sofa').legs(0.95, 0.36, 0.1, 0.07, DK).b(0, 0.24, 0, 2.1, 0.28, 0.9, G2).b(0, 0.6, -0.37, 1.72, 0.56, 0.16, G2).s(-0.96, 0.44, 0, 0.24, 0.52, 0.94, G1).s(0.96, 0.44, 0, 0.24, 0.52, 0.94, G1)
+      .s(-0.56, 0.45, 0.09, 0.55, 0.17, 0.68, W).s(0, 0.45, 0.09, 0.55, 0.17, 0.68, W).s(0.56, 0.45, 0.09, 0.55, 0.17, 0.68, W).s(-0.56, 0.7, -0.24, 0.54, 0.4, 0.2, G1).s(0, 0.7, -0.24, 0.54, 0.4, 0.2, G1).s(0.56, 0.7, -0.24, 0.54, 0.4, 0.2, G1)
+      .s(0.62, 0.64, 0, 0.34, 0.3, 0.13, 0xc8a05a, 0.2, 0.35, 0.1).end();
+    P('armchair').legs(0.38, 0.36, 0.1, 0.07, DK).b(0, 0.24, 0, 0.95, 0.28, 0.9, G2).b(0, 0.6, -0.37, 0.6, 0.56, 0.16, G2).s(-0.39, 0.44, 0, 0.22, 0.52, 0.94, G1).s(0.39, 0.44, 0, 0.22, 0.52, 0.94, G1).s(0, 0.45, 0.09, 0.56, 0.17, 0.68, W).s(0, 0.7, -0.24, 0.56, 0.4, 0.2, G1).end();
+    P('ctable').legs(0.46, 0.21, 0.4, 0.05, WD2).b(0, 0.41, 0, 1.05, 0.045, 0.55, WD).b(0, 0.14, 0, 0.92, 0.03, 0.44, WD2).b(0.22, 0.45, 0.05, 0.25, 0.03, 0.18, 0x9a2a22, 0, 0.3, 0).b(0.2, 0.478, 0.04, 0.22, 0.025, 0.16, 0x2a4a7a, 0, -0.2, 0).c(-0.28, 0.48, -0.06, 0.04, 0.09, 0xe8e0d0).b(-0.2, 0.16, 0.05, 0.3, 0.02, 0.22, 0xd8d0c0, 0, 0.5, 0).end();
+    P('dtable').legs(0.67, 0.35, 0.72, 0.07, WD2).b(0, 0.69, 0, 1.38, 0.08, 0.73, WD2).b(0, 0.755, 0, 1.52, 0.05, 0.87, WD).c(-0.42, 0.79, 0.16, 0.11, 0.014, 0xf0ece4).c(0.42, 0.79, -0.16, 0.11, 0.014, 0xf0ece4).c(0.05, 0.9, -0.08, 0.036, 0.24, 0x3a6a3a).c(0.05, 1.04, -0.08, 0.014, 0.08, 0x3a6a3a).c(-0.1, 0.83, 0.05, 0.06, 0.09, 0x9a5a3a).b(0.4, 0.785, 0.2, 0.2, 0.01, 0.03, 0xb8bcc0, 0, 0.4, 0).end();
+    P('chair').legs(0.18, 0.18, 0.45, 0.04, WD2).b(0, 0.46, 0, 0.43, 0.045, 0.43, WD).b(-0.19, 0.72, -0.195, 0.04, 0.52, 0.04, WD2).b(0.19, 0.72, -0.195, 0.04, 0.52, 0.04, WD2).b(0, 0.93, -0.195, 0.42, 0.1, 0.03, WD).b(0, 0.72, -0.195, 0.42, 0.06, 0.03, WD).s(0, 0.495, 0.01, 0.38, 0.05, 0.38, G1).end();
+    P('bed').legs(0.76, 0.96, 0.14, 0.09, WD2).b(0, 0.22, 0, 1.68, 0.2, 2.06, WD).b(0, 0.62, -1.02, 1.74, 1.05, 0.08, WD2).b(0, 0.3, 1.03, 1.74, 0.4, 0.06, WD2).s(0, 0.43, 0, 1.6, 0.24, 1.98, 0xf2eee4).s(-0.4, 0.6, -0.72, 0.62, 0.15, 0.4, 0xfaf8f2).s(0.4, 0.6, -0.72, 0.62, 0.15, 0.4, 0xfaf8f2).s(0, 0.5, 0.3, 1.66, 0.2, 1.4, W).b(0, 0.6, -0.36, 1.62, 0.03, 0.2, G1).end();
+    P('bedside').b(0, 0.26, 0, 0.45, 0.52, 0.4, WD).b(0, 0.39, 0.205, 0.39, 0.16, 0.01, WD2).b(0, 0.17, 0.205, 0.39, 0.2, 0.01, WD2).b(0, 0.39, 0.215, 0.1, 0.02, 0.015, MT).b(0, 0.17, 0.215, 0.1, 0.02, 0.015, MT).c(0, 0.56, 0, 0.07, 0.03, CH).c(0, 0.68, 0, 0.012, 0.24, CH).c(0, 0.86, 0, 0.12, 0.16, 0xf0e0b8).end();
+    P('wardrobe').b(0, 0.05, 0, 1.2, 0.1, 0.56, WD2).b(0, 1.05, -0.02, 1.2, 1.9, 0.56, WD).b(-0.3, 1.05, 0.265, 0.57, 1.8, 0.03, WL).b(0.3, 1.05, 0.265, 0.57, 1.8, 0.03, WL).b(-0.3, 1.05, 0.285, 0.44, 1.6, 0.012, WD).b(0.3, 1.05, 0.285, 0.44, 1.6, 0.012, WD).b(-0.05, 1.05, 0.3, 0.02, 0.22, 0.03, MT).b(0.05, 1.05, 0.3, 0.02, 0.22, 0.03, MT).b(0, 2.03, 0, 1.26, 0.06, 0.6, WD2).b(0.2, 2.16, 0, 0.5, 0.2, 0.36, 0xb8936a).b(-0.3, 2.12, 0.02, 0.36, 0.12, 0.3, 0x5a6a8a).end();
+    { const k = P('kitchen'); k.b(0, 0.06, 0.02, 2.0, 0.12, 0.5, DK).b(0, 0.5, 0, 2.0, 0.78, 0.58, 0xe6e0d4); for (let i = 0; i < 4; i++) { k.b(-0.75 + i * 0.5, 0.5, 0.295, 0.46, 0.7, 0.015, 0xf2ede2).b(-0.75 + i * 0.5, 0.78, 0.31, 0.14, 0.018, 0.02, MT); }
+      k.b(0, 0.905, 0.01, 2.06, 0.045, 0.64, 0x3c3c40).b(-0.55, 0.915, 0.02, 0.56, 0.03, 0.4, 0xb8bcc2).b(-0.55, 0.9, 0.02, 0.48, 0.03, 0.32, 0x6a6e74).c(-0.55, 1.03, -0.2, 0.015, 0.2, MT).b(-0.55, 1.12, -0.13, 0.025, 0.025, 0.16, MT)
+        .b(0.5, 0.932, 0.02, 0.6, 0.012, 0.5, 0x18181a); for (const a of [-1, 1]) for (const b of [-1, 1]) k.c(0.5 + a * 0.15, 0.942, 0.02 + b * 0.12, 0.07, 0.012, 0x4a4a4e);
+      k.b(0, 1.25, -0.275, 2.0, 0.62, 0.02, 0xd8e2e6).b(0, 1.82, -0.12, 2.0, 0.6, 0.34, 0xe6e0d4); for (let i = 0; i < 4; i++) k.b(-0.75 + i * 0.5, 1.82, 0.055, 0.46, 0.54, 0.015, 0xf2ede2).b(-0.75 + i * 0.5, 1.6, 0.07, 0.14, 0.018, 0.02, MT);
+      k.c(0.05, 1.0, -0.12, 0.06, 0.16, 0xc83a2a).c(-0.1, 0.97, -0.15, 0.045, 0.1, 0xe8e0d0).b(0.92, 1.0, -0.1, 0.1, 0.16, 0.2, 0x8a6a4a).end(); }
+    P('fridge').b(0, 0.92, 0, 0.72, 1.8, 0.66, 0xe4e6e8).b(0, 1.42, 0.335, 0.68, 0.72, 0.02, 0xf2f4f6).b(0, 0.5, 0.335, 0.68, 0.96, 0.02, 0xf2f4f6).b(-0.28, 1.3, 0.36, 0.03, 0.36, 0.03, MT).b(-0.28, 0.75, 0.36, 0.03, 0.36, 0.03, MT).b(0, 0.02, 0, 0.7, 0.04, 0.6, DK).b(0.1, 1.5, 0.35, 0.12, 0.09, 0.005, 0xd8c020).b(-0.05, 1.3, 0.35, 0.09, 0.12, 0.005, 0xc83a2a).end();
+    P('tvunit').b(0, 0.25, 0, 1.5, 0.42, 0.42, WD).b(0, 0.02, 0, 1.4, 0.04, 0.36, DK).b(-0.37, 0.25, 0.215, 0.7, 0.34, 0.012, WD2).b(0.37, 0.25, 0.215, 0.7, 0.34, 0.012, WD2).b(0, 0.475, 0, 1.54, 0.03, 0.46, WD2).b(0, 0.51, 0.02, 0.4, 0.03, 0.22, CH).b(0, 0.6, 0.02, 0.06, 0.16, 0.05, CH).b(0, 0.98, 0.02, 1.16, 0.68, 0.05, 0x121214).b(0, 0.98, 0.047, 1.08, 0.6, 0.004, 0x1c2630).b(0.5, 0.52, 0.1, 0.24, 0.05, 0.16, 0x2a2a30).b(-0.52, 0.56, 0.05, 0.12, 0.13, 0.12, 0x4a4a52).end();
+    { const k = P('bookshelf'); k.b(-0.44, 0.95, 0, 0.03, 1.9, 0.3, WD).b(0.44, 0.95, 0, 0.03, 1.9, 0.3, WD).b(0, 0.95, -0.14, 0.88, 1.9, 0.02, WD2); const BC = [0x8a2a22, 0x2a4a7a, 0x3a6a3a, 0xc8a030, 0x5a3a6a, 0xd8d0c0, 0x2a2a30, 0xa85a2a]; let sd = 7;
+      for (let r = 0; r < 5; r++) { k.b(0, 0.04 + r * 0.46, 0, 0.88, 0.03, 0.3, WD); let x = -0.4; while (x < 0.36) { sd = (sd * 16807) % 2147483647; const t = 0.03 + (sd % 40) / 1000, h = 0.24 + (sd % 13) / 100; if (sd % 9 === 0) { x += 0.1; continue; } k.b(x + t / 2, 0.055 + r * 0.46 + h / 2, 0.01, t, h, 0.2, BC[sd % 8], 0, 0, sd % 7 === 0 ? 0.12 : 0); x += t + 0.004; } } k.b(0, 1.9, 0, 0.9, 0.03, 0.32, WD).end(); }
+    P('rug').b(0, 0.012, 0, 2.6, 0.02, 1.8, G2).b(0, 0.016, 0, 2.3, 0.02, 1.5, W).b(0, 0.02, 0, 1.5, 0.02, 0.8, G1).end();
+    P('lamp').c(0, 0.015, 0, 0.15, 0.03, CH).c(0, 0.75, 0, 0.014, 1.5, CH).c(0, 1.55, 0, 0.17, 0.26, 0xf0e2c0).end();
+    P('plant').c(0, 0.17, 0, 0.17, 0.34, 0xa8623a).c(0, 0.345, 0, 0.15, 0.02, 0x3a2a1c).c(0, 0.6, 0, 0.012, 0.5, 0x4a5a2a).s(0, 0.86, 0, 0.42, 0.36, 0.42, 0x3a7a2e, 0.2, 0.5, 0).s(0.1, 1.08, 0.04, 0.3, 0.3, 0.3, 0x4a8a34, 0.4, 1, 0.2).s(-0.12, 0.72, -0.05, 0.3, 0.22, 0.3, 0x2e6a26, 0, 2, 0.3).end();
+    P('picture').b(0, 0, 0, 0.7, 0.5, 0.03, WD2).b(0, 0, 0.012, 0.62, 0.42, 0.02, 0xece6d8).b(0, 0, 0.022, 0.5, 0.3, 0.012, W).b(-0.08, -0.04, 0.03, 0.2, 0.14, 0.006, G2).end();
+    P('desk').b(0, 0.74, 0, 1.45, 0.04, 0.72, 0xd8d0c0).b(-0.7, 0.36, 0, 0.04, 0.72, 0.68, 0x6a6e74).b(0.48, 0.38, 0, 0.42, 0.68, 0.66, 0x8a8c92).b(0.48, 0.58, 0.335, 0.38, 0.2, 0.012, 0xa8aab0).b(0.48, 0.34, 0.335, 0.38, 0.2, 0.012, 0xa8aab0).b(0.48, 0.12, 0.335, 0.38, 0.2, 0.012, 0xa8aab0)
+      .b(-0.1, 0.775, -0.18, 0.24, 0.02, 0.16, CH).b(-0.1, 0.86, -0.2, 0.04, 0.16, 0.03, CH).b(-0.1, 1.08, -0.2, 0.56, 0.35, 0.03, 0x161618).b(-0.1, 1.08, -0.183, 0.5, 0.29, 0.004, 0x1e2a36).b(-0.1, 0.772, 0.12, 0.42, 0.015, 0.14, 0x2a2a2e).b(0.26, 0.772, 0.12, 0.06, 0.02, 0.1, 0x2a2a2e).c(-0.5, 0.81, 0.1, 0.04, 0.09, 0xf0f0ec).b(0.45, 0.775, -0.1, 0.22, 0.03, 0.3, 0xf4f2ea, 0, 0.2, 0).end();
+    { const k = P('ochair'); for (let i = 0; i < 5; i++) { const a = i / 5 * 6.283; k.b(Math.sin(a) * 0.15, 0.05, Math.cos(a) * 0.15, 0.05, 0.03, 0.32, CH, 0, a, 0).c(Math.sin(a) * 0.29, 0.03, Math.cos(a) * 0.29, 0.03, 0.04, DK, 0, Math.PI / 2); } k.c(0, 0.25, 0, 0.025, 0.4, MT).s(0, 0.48, 0, 0.46, 0.09, 0.46, G1).b(0, 0.66, -0.21, 0.05, 0.3, 0.03, CH).s(0, 0.86, -0.22, 0.42, 0.46, 0.07, G1).b(-0.25, 0.62, 0, 0.04, 0.03, 0.26, CH).b(0.25, 0.62, 0, 0.04, 0.03, 0.26, CH).end(); }
+    { const k = P('filecab'); k.b(0, 0.66, 0, 0.48, 1.32, 0.6, 0x8a8e94); for (let i = 0; i < 4; i++) k.b(0, 0.18 + i * 0.32, 0.305, 0.43, 0.29, 0.012, 0xa2a6ac).b(0, 0.22 + i * 0.32, 0.32, 0.14, 0.02, 0.02, 0x5a5c60).b(0, 0.13 + i * 0.32, 0.313, 0.1, 0.05, 0.004, 0xf0f0e8); k.end(); }
+    P('boxes').b(0, 0.22, 0, 0.6, 0.44, 0.45, 0xb8936a, 0, 0.15, 0).b(0, 0.445, 0, 0.6, 0.012, 0.07, 0xd8c8a0, 0, 0.15, 0).b(0.06, 0.62, 0.02, 0.46, 0.36, 0.38, 0xa8835a, 0, -0.25, 0).b(0.62, 0.17, 0.1, 0.42, 0.34, 0.36, 0xc8a878, 0, 0.5, 0).b(-0.5, 0.03, 0.4, 0.3, 0.01, 0.21, 0xf0f0ec, 0, 0.7, 0).end();
+    { const k = P('rack'); k.legs(0.58, 0.2, 1.9, 0.04, 0x6a6e74); const BC = [0xb8936a, 0xa8835a, 0x3a5a7a, 0x8a3a2a, 0xd8d0c0, 0x4a6a4a]; let sd = 11; for (let r = 0; r < 4; r++) { k.b(0, 0.12 + r * 0.55, 0, 1.2, 0.03, 0.44, 0xa8acb2); for (let i = 0; i < 3; i++) { sd = (sd * 16807) % 2147483647; if (sd % 4 === 0) continue; const w = 0.26 + (sd % 10) / 100, h = 0.2 + (sd % 17) / 100; k.b(-0.38 + i * 0.38, 0.135 + r * 0.55 + h / 2, 0.01, w, h, 0.3, BC[sd % 6], 0, ((sd % 5) - 2) * 0.06, 0); } } k.end(); }
+    P('till').b(0, 0.14, 0, 0.36, 0.2, 0.38, 0x2e3036).b(0, 0.3, -0.1, 0.34, 0.16, 0.14, 0x2e3036, -0.35, 0, 0).b(0, 0.33, -0.06, 0.26, 0.1, 0.01, 0x7ab08a, -0.35, 0, 0).b(0, 0.245, 0.08, 0.28, 0.01, 0.16, 0x8a8c90).b(0.4, 0.06, 0.05, 0.22, 0.012, 0.3, 0xf0f0ec, 0, 0.3, 0).c(-0.36, 0.08, 0.05, 0.05, 0.16, 0xe8e0d0).end();
+  }
   // tablones clavados en una ventana (sg: segmento, u: posición, y: altura del centro)
   function boardUp(sg, u, y, W = 1.35, H = 1.6) {
     const ang = Math.atan2(sg.tx, sg.tz);
@@ -313,6 +357,11 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
     CITY.rooms.push(room);
     // ---- mobiliario y contenedores ----
     const FUR = INT_F;
+    const TINT = [0xa84a40, 0x4a6a9a, 0x5a8a5a, 0xb89a6a, 0x7a7a82, 0x8a5a8a, 0xc8a84a, 0x3a6a72, 0xb0683a];
+    // F: coloca una copia de un mueble; face = hacia dónde mira ('v+' al fondo, 'v-' a la puerta, 'u+', 'u-')
+    const F = (name, u, v, face = 'v-', o = {}) => { const fu = face === 'u+' ? 1 : face === 'u-' ? -1 : 0, fv = face === 'v+' ? 1 : face === 'v-' ? -1 : 0, wx = sg.tx * fu - sg.nx * fv, wz = sg.tz * fu - sg.nz * fv, [x, z] = W2(sg, u, v);
+      const key = Math.floor((x0 + x1) / 2 / FCS) + '_' + Math.floor((z0 + z1) / 2 / FCS); let cell = FCELL.get(key); if (!cell) FCELL.set(key, cell = {}); (cell[name] || (cell[name] = [])).push(new THREE.Matrix4().compose(new THREE.Vector3(x, Y + 0.02 + (o.y || 0), z), new THREE.Quaternion().setFromEuler(_fe.set(o.rx || 0, Math.atan2(wx, wz) + (o.ry || 0), o.rz || 0)), new THREE.Vector3(o.s || 1, o.s || 1, o.s || 1)), o.tint === undefined ? 0xffffff : o.tint);
+      if (o.col) { const sw = fu !== 0, hw = (sw ? o.col[1] : o.col[0]) / 2, hd = (sw ? o.col[0] : o.col[1]) / 2; scol(sg, u - hw, v - hd, u + hw, v + hd, 0, o.col[2]); } };
     const cont = (u, v, kind, name, loot, water) => { const [x, z] = W2(sg, u, v); CITY.conts.push({ kind, name, loot, water: !!water, pos: new THREE.Vector3(x, Y, z), room }); };
     const shelf = (u, v, len, col, loot, name = 'Estantería', along = true) => {
       const tw = along ? len : 0.5, nd = along ? 0.5 : len;
@@ -325,8 +374,8 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
       const a2 = W2(sg, u - tw / 2, v - nd / 2), b2 = W2(sg, u + tw / 2, v + nd / 2); addBox(Math.min(a2[0], b2[0]), Y, Math.min(a2[1], b2[1]), Math.max(a2[0], b2[0]), Y + 2, Math.max(a2[1], b2[1]));
       cont(along ? u : u + (u > 0 ? -0.8 : 0.8), along ? v - 0.75 : v, 'shelf', name, loot);
     };
-    const counter = (u, v, len, loot, name = 'Mostrador', water) => { sbox(FUR, sg, u, Y + 0.5, v, len, 1.0, 0.7, 0x6a4a3a); sbox(FUR, sg, u, Y + 1.02, v, len + 0.1, 0.06, 0.8, 0xe8e2d6); scol(sg, u - len / 2, v - 0.35, u + len / 2, v + 0.35, 0, 1.05); cont(u, v + 0.9, 'counter', name, loot, water); };
-    const table = (u, v) => { sbox(FUR, sg, u, Y + 0.76, v, 1.6, 0.06, 0.9, 0x6a4a3a); for (const a of [-1, 1]) for (const b of [-1, 1]) sbox(FUR, sg, u + a * 0.7, Y + 0.38, v + b * 0.38, 0.06, 0.76, 0.06, 0x3a2a24); scol(sg, u - 0.8, v - 0.45, u + 0.8, v + 0.45, 0, 0.8); };
+    const counter = (u, v, len, loot, name = 'Mostrador', water) => { sbox(FUR, sg, u, Y + 0.5, v, len, 1.0, 0.7, 0x6a4a3a); sbox(FUR, sg, u, Y + 1.02, v, len + 0.1, 0.06, 0.8, 0xe8e2d6); sbox(FUR, sg, u, Y + 0.5, v - 0.36, len - 0.1, 0.8, 0.02, 0x4a3428); F('till', u + Math.min(0.5, len / 2 - 0.4), v, 'v+', { y: 1.04 }); scol(sg, u - len / 2, v - 0.35, u + len / 2, v + 0.35, 0, 1.05); cont(u, v + 0.9, 'counter', name, loot, water); };
+    const table = (u, v) => { F('dtable', u, v, 'v-', { col: [1.5, 0.87, 0.8] }); F('chair', u - 0.4, v - 0.72, 'v+', { ry: R(-0.3, 0.3) }); F('chair', u + 0.4, v + 0.72, 'v-', { ry: R(-0.3, 0.3) }); };
     const CARDS = [0xe83a3a, 0x3a6ad8, 0xf0c43a, 0x3aaa5a, 0x8a3ab8, 0xff7a1a, 0x1a1a1a];
     const FOOD = [0xe8a02a, 0xd83a2a, 0x3a8ae8, 0xf0e04a, 0x5aaa3a, 0xffffff, 0xa86a3a];
     const BV = sh.kind === 'super' || sh.kind === 'mercat';
@@ -351,33 +400,47 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
     else if (sh.kind === 'quiosc') { shelf(0, D - 0.65, w - 2, [0xe83a3a, 0x3a6ad8, 0xf0c43a, 0x5a3018], 'quiosc'); counter(0, 2.4, w - 3.5, 'quiosc', 'Mostrador'); }
     else if (sh.kind === 'policia') { counter(0, 2.6, w - 3, 'crate', 'Recepción'); shelf(0, D - 0.65, w - 2, [0x3a4a6a, 0x2a2a30], 'policia', 'Taquillas'); }
     else if (sh.kind === 'ajuntament') { counter(0, 2.8, w - 3, 'crate', 'Mostrador'); shelf(0, D - 0.65, w - 2, [0xe8e0c8, 0x8a6a4a], 'crate', 'Archivo'); }
-    else if (sh.kind === 'casa') { // vivienda: muebles fusionados, un armario y la cocina para registrar
-      const col = pick([0x6a3a3a, 0x3a4a6a, 0x5a6a3a, 0x7a6a5a, 0x4a4a4a]);
-      sbox(FUR, sg, -w / 2 + 1.0, Y + 0.25, D / 2, 1.6, 0.5, 2.2, col); sbox(FUR, sg, -w / 2 + 0.45, Y + 0.6, D / 2, 0.45, 0.9, 2.2, col); scol(sg, -w / 2, D / 2 - 1.1, -w / 2 + 1.8, D / 2 + 1.1, 0, 0.8);
-      sbox(FUR, sg, 0.3, Y + 0.02, D / 2, 2.2, 0.02, 1.6, pick([0x8a3a2a, 0x3a5a7a, 0x6a6a3a])); // alfombra
-      table(0.4, D / 2 - 0.2); for (const s2 of [-1, 1]) { sbox(FUR, sg, 0.4 + s2 * 1.1, Y + 0.45, D / 2 - 0.2, 0.45, 0.06, 0.45, 0x5a3a2a); sbox(FUR, sg, 0.4 + s2 * 1.3, Y + 0.7, D / 2 - 0.2, 0.06, 0.55, 0.45, 0x5a3a2a); }
-      sbox(FUR, sg, w / 2 - 1.2, Y + 0.45, D - 0.45, 2.0, 0.9, 0.6, 0xd8d2c6); sbox(FUR, sg, w / 2 - 1.2, Y + 0.92, D - 0.45, 2.05, 0.05, 0.65, 0x3a3a3a); scol(sg, w / 2 - 2.2, D - 0.8, w / 2 - 0.2, D, 0, 0.95); cont(w / 2 - 1.2, D - 1.2, 'cab', 'Cocina', 'kitchen');
-      sbox(FUR, sg, -w / 2 + 0.9, Y + 1.0, D - 0.4, 1.2, 2.0, 0.6, 0x7a5a3a); scol(sg, -w / 2 + 0.3, D - 0.7, -w / 2 + 1.5, D, 0, 2); cont(-w / 2 + 0.9, D - 1.1, 'cab', 'Armario', 'home');
-      if (w > 7) { sbox(FUR, sg, w / 2 - 1.2, Y + 0.3, 1.8, 1.6, 0.5, 2.0, 0xd8d0c0); sbox(FUR, sg, w / 2 - 1.2, Y + 0.55, 0.9, 1.6, 0.4, 0.15, 0x6a4a3a); scol(sg, w / 2 - 2, 0.8, w / 2 - 0.4, 2.8, 0, 0.6); }
-      sbox(FUR, sg, -w / 2 + 0.2, Y + 1.2, D / 2, 0.06, 0.6, 1.0, 0x111111); // tele en la pared
-      for (let k = 0; k < 4; k++) sbox(FUR, sg, R(-w / 2 + 1, w / 2 - 1), Y + 0.05, R(1, D - 1), R(0.2, 0.5), 0.05, R(0.2, 0.5), pick([0xe8e0c8, 0x6a5a4a, 0x3a3a3a])); // trastos tirados
-    } else if (sh.kind === 'local') { // local abandonado: estanterías medio vacías, mostrador y cajas
-      const rows = Math.max(1, Math.floor((w - 3) / 3.2)); for (let r = 0; r < Math.min(rows, 2); r++) { const u = -w / 2 + 2 + r * 3.2; sbox(FUR, sg, u, Y + 0.9, D / 2 + 0.3, 0.5, 1.8, D - 4, 0x8a8a92); for (let k = 0; k < 4; k++) sbox(FUR, sg, u, Y + 0.1 + k * 0.5, D / 2 + 0.3, 0.55, 0.04, D - 4, 0xc8c8ce); const a2 = W2(sg, u - 0.25, D / 2 + 0.3 - (D - 4) / 2), b2 = W2(sg, u + 0.25, D / 2 + 0.3 + (D - 4) / 2); addBox(Math.min(a2[0], b2[0]), Y, Math.min(a2[1], b2[1]), Math.max(a2[0], b2[0]), Y + 1.8, Math.max(a2[1], b2[1])); if (r === 0) cont(u + 0.8, D / 2, 'shelf', 'Estantería', 'localx'); }
+    else if (sh.kind === 'casa') { // vivienda: salón, comedor, cocina y cama según el espacio
+      const tint = pick(TINT), vS = clamp(D / 2 - 0.2, 1.9, D - 2.9), L = -w / 2, Rr = w / 2, wide = w >= 7.5;
+      F('rug', L + 1.9, vS, 'u+', { tint: pick(TINT) }); F('sofa', L + 0.55, vS, 'u+', { tint, col: [2.1, 0.95, 0.85] }); F('ctable', L + 1.85, vS, 'u+', { col: [1.05, 0.55, 0.45], ry: rand() < 0.3 ? R(-0.3, 0.3) : 0 });
+      if (wide) F('tvunit', L + 3.45, vS, 'u-', { col: [1.5, 0.45, 1.3] }); else F('tvunit', Rr - 0.3, clamp(vS, 1.2, D - 3.3), 'u-', { col: [1.5, 0.45, 1.3] });
+      F('picture', L + 0.04, vS - 0.5, 'u+', { y: 1.55, tint: pick(TINT) }); F('picture', L + 0.04, vS + 0.55, 'u+', { y: 1.7, tint: pick(TINT), s: 0.7 }); F('lamp', L + 0.4, vS + 1.45, 'u+'); F('plant', L + 0.45, 0.55, 'v+', { ry: R(0, 6), s: R(0.85, 1.15) });
+      if (D >= 6.6) F('armchair', L + 1.7, vS - 1.9, 'v+', { tint: pick(TINT), col: [0.95, 0.95, 0.85], ry: -0.3 });
+      // cocina al fondo a la derecha, con nevera
+      F('kitchen', Rr - 1.15, D - 0.32, 'v-', { col: [2.05, 0.64, 2.1] }); F('fridge', Rr - 2.6, D - 0.36, 'v-', { col: [0.74, 0.7, 1.85] }); cont(Rr - 1.2, D - 1.2, 'cab', 'Cocina', 'kitchen');
+      const dx = wide ? Rr - 2.3 : 0.5, dv = D - 2.35; F('dtable', dx, dv, 'v-', { col: [1.5, 0.87, 0.8] });
+      F('chair', dx - 0.4, dv - 0.72, 'v+'); F('chair', dx + 0.4, dv + 0.72, 'v-'); if (rand() < 0.5) F('chair', dx - 1.2, dv + 0.3, 'u+', { rx: Math.PI / 2, y: 0.2, ry: R(0, 3) }); else F('chair', dx + 0.45, dv - 0.75, 'v+', { ry: R(-0.5, 0.5) });
+      // armario y librería
+      F('wardrobe', L + 0.9, D - 0.33, 'v-', { col: [1.22, 0.62, 2.1] }); cont(L + 0.9, D - 1.1, 'cab', 'Armario', 'home'); if (w >= 6.6) F('bookshelf', L + 2.15, D - 0.2, 'v-', { col: [0.92, 0.34, 1.9] });
+      if (w > 7) { F('bed', Rr - 1.0, 1.35, 'v+', { tint: pick(TINT), col: [1.72, 2.1, 0.65] }); F('bedside', Rr - 2.15, 0.42, 'v+', { col: [0.46, 0.42, 0.55] }); F('picture', Rr - 1.0, 0.26, 'v+', { y: 1.6, tint: pick(TINT) }); }
+      F('boxes', R(-0.5, 1.2), R(0.8, 1.4), 'v+', { ry: R(0, 6) });
+      if (D >= 9) { F('bookshelf', Rr - 0.2, D / 2 + 0.6, 'u-', { col: [0.92, 0.34, 1.9] }); F('wardrobe', Rr - 0.33, D / 2 + 2.0, 'u-', { col: [1.22, 0.62, 2.1] }); F('armchair', L + 0.6, vS + 2.4, 'u+', { tint: pick(TINT), col: [0.95, 0.95, 0.85], ry: 0.3 }); F('plant', Rr - 0.5, D / 2 - 0.4, 'v+', { ry: R(0, 6), s: 1.2 }); F('rug', 0.4, D - 2.6, 'v+', { tint: pick(TINT), s: 0.9 }); F('picture', Rr - 0.04, D / 2 - 1.6, 'u-', { y: 1.6, tint: pick(TINT), s: 1.2 }); }
+      for (let k = 0; k < 4; k++) sbox(FUR, sg, R(L + 1, Rr - 1), Y + 0.04, R(1, D - 1), R(0.15, 0.4), 0.03, R(0.15, 0.4), pick([0xe8e0c8, 0x6a5a4a, 0x3a3a3a])); // trastos tirados
+    } else if (sh.kind === 'local') { // local abandonado: estanterías metálicas, mostrador con caja y cajas apiladas
+      const rows = Math.min(2, Math.max(1, Math.floor((w - 3) / 3.2))), nr = Math.max(1, Math.floor((D - 4) / 1.3));
+      for (let r = 0; r < rows; r++) { const u = -w / 2 + 2 + r * 3.2; for (let k = 0; k < nr; k++) { if (rand() < 0.12) continue; F('rack', u, 2.6 + k * 1.3 + 0.2, 'u+', { col: [1.24, 0.5, 1.9], ry: rand() < 0.15 ? R(-0.15, 0.15) : 0 }); } if (r === 0) cont(u + 0.8, D / 2, 'shelf', 'Estantería', 'localx'); }
       counter(w / 2 - 1.4, 2.0, 1.8, 'localx', 'Mostrador');
-      for (let k = 0; k < 3; k++) { const u = R(-w / 2 + 1, w / 2 - 1), v = R(1.5, D - 1); sbox(FUR, sg, u, Y + 0.25, v, 0.6, 0.5, 0.5, 0xb8834a); }
-      for (let k = 0; k < 6; k++) sbox(FUR, sg, R(-w / 2 + 1, w / 2 - 1), Y + 0.04, R(1, D - 1), R(0.15, 0.4), 0.04, R(0.15, 0.4), pick([0xe8e0c8, 0xc83a2a, 0x3a6ad8]));
-    } else if (sh.kind === 'oficina') { // oficina: mesas, sillas y archivadores
-      for (let k = 0; k < Math.min(3, Math.floor(w / 3)); k++) { const u = -w / 2 + 1.6 + k * 2.8; sbox(FUR, sg, u, Y + 0.74, D / 2, 1.4, 0.05, 0.75, 0xd8d0c0); for (const a of [-1, 1]) sbox(FUR, sg, u + a * 0.65, Y + 0.37, D / 2, 0.05, 0.74, 0.7, 0x5a5a62); sbox(FUR, sg, u, Y + 0.95, D / 2 + 0.2, 0.5, 0.35, 0.04, 0x1a1a1e); sbox(FUR, sg, u, Y + 0.45, D / 2 - 0.6, 0.45, 0.08, 0.45, 0x2a2a30); scol(sg, u - 0.7, D / 2 - 0.4, u + 0.7, D / 2 + 0.4, 0, 0.8); }
-      sbox(FUR, sg, -w / 2 + 0.6, Y + 0.65, D - 0.4, 0.8, 1.3, 0.5, 0x8a8c92); scol(sg, -w / 2 + 0.2, D - 0.65, -w / 2 + 1.0, D, 0, 1.3); cont(-w / 2 + 0.6, D - 1.0, 'cab', 'Archivador', 'office');
+      for (let k = 0; k < 3; k++) F('boxes', R(-w / 2 + 1, w / 2 - 1), R(1.5, D - 1), 'v+', { ry: R(0, 6), s: R(0.9, 1.2) });
+      F('rack', 0, D - 0.3, 'v-', { col: [1.24, 0.5, 1.9] }); if (w > 7) F('filecab', -w / 2 + 0.4, D - 0.4, 'v-', { col: [0.5, 0.62, 1.35] });
+      for (let k = 0; k < 6; k++) sbox(FUR, sg, R(-w / 2 + 1, w / 2 - 1), Y + 0.04, R(1, D - 1), R(0.15, 0.4), 0.03, R(0.15, 0.4), pick([0xe8e0c8, 0xc83a2a, 0x3a6ad8]));
+    } else if (sh.kind === 'oficina') { // oficina: puestos de trabajo, archivadores y sala de espera
+      const nd = Math.min(3, Math.floor(w / 2.9)), tint = pick([0x3a4a6a, 0x4a4a52, 0x6a3a3a, 0x3a5a4a]);
+      for (let k = 0; k < nd; k++) { const u = -w / 2 + 1.5 + k * 2.8, v = clamp(D / 2 + 0.2, 2.4, D - 2.2); F('desk', u, v, 'v-', { col: [1.45, 0.72, 0.8] }); if (rand() < 0.75) F('ochair', u - 0.1, v - 0.75, 'v+', { tint, ry: R(-0.8, 0.8) }); else F('ochair', u + R(-0.5, 0.5), v - 1.2, 'v+', { tint, rz: Math.PI / 2, y: 0.25, ry: R(0, 6) }); }
+      F('filecab', -w / 2 + 0.45, D - 0.36, 'v-', { col: [0.5, 0.62, 1.35] }); F('filecab', -w / 2 + 0.97, D - 0.36, 'v-', { col: [0.5, 0.62, 1.35] }); cont(-w / 2 + 0.7, D - 1.0, 'cab', 'Archivador', 'office');
+      F('bookshelf', w / 2 - 0.7, D - 0.2, 'v-', { col: [0.92, 0.34, 1.9] }); F('plant', w / 2 - 0.45, 0.55, 'v+', { ry: R(0, 6) }); F('picture', 0, D - 0.04, 'v-', { y: 1.6, tint: pick(TINT), s: 1.3 });
+      if (w >= 7) { F('armchair', -w / 2 + 0.6, 1.2, 'u+', { tint, col: [0.95, 0.95, 0.85] }); F('ctable', -w / 2 + 1.7, 1.2, 'u+', { col: [1.05, 0.55, 0.45] }); }
+      F('boxes', R(-1, 1), D - 1.1, 'v+', { ry: R(0, 6) });
       for (let k = 0; k < 8; k++) sbox(FUR, sg, R(-w / 2 + 1, w / 2 - 1), Y + 0.03, R(1, D - 1), 0.21, 0.01, 0.29, 0xf0f0ec); // papeles
     }
     else { // piso
       const fr = flatModel(fridgeModel()), ck = flatModel(cabinetModel()), sk = flatModel(sinkModel());
       const put = (mod, u, v, fw, fd, h, kind, name, water) => { const [x, z] = W2(sg, u, v); mod.position.set(x, Y + 0.06, z); mod.rotation.y = Math.atan2(sg.nx, sg.nz); scene.add(mod); const a2 = W2(sg, u - fw / 2, v - fd / 2), b2 = W2(sg, u + fw / 2, v + fd / 2); const bx = addBox(Math.min(a2[0], b2[0]), Y, Math.min(a2[1], b2[1]), Math.max(a2[0], b2[0]), Y + h, Math.max(a2[1], b2[1])); cont(u, v - fd / 2 - 0.5, kind, name, kind === 'sink' ? null : kind, water); const cc = CITY.conts[CITY.conts.length - 1]; cc.model = mod; cc.box = bx; cc.dismantle = kind === 'cab' ? { plank: 3, nails: 4 } : kind === 'fridge' ? { scrap: 2 } : null; };
       put(fr, w / 2 - 0.8, D - 0.7, 0.8, 0.7, 1.8, 'fridge', 'Nevera'); put(sk, w / 2 - 2.0, D - 0.65, 1.2, 0.6, 1, 'sink', 'Fregadero', true); put(ck, -w / 2 + 1.1, D - 0.62, 1.1, 0.55, 1, 'cab', 'Armario');
-      // sofá y cama
-      sbox(FUR, sg, -w / 2 + 1.0, Y + 0.3, D / 2 - 0.5, 1.6, 0.6, 2.2, pick([0x6a3a3a, 0x3a4a6a, 0x5a6a3a])); sbox(FUR, sg, -w / 2 + 0.45, Y + 0.6, D / 2 - 0.5, 0.5, 1.0, 2.2, 0x4a3a3a); scol(sg, -w / 2, D / 2 - 1.6, -w / 2 + 1.8, D / 2 + 0.6, 0, 0.8);
-      table(w / 4 - 0.5, D / 2 - 0.5);
+      // salón y cama
+      { const tint = pick(TINT), vS = clamp(D / 2 - 0.5, 1.9, D - 2.9), L = -w / 2, Rr = w / 2;
+        F('rug', L + 1.9, vS, 'u+', { tint: pick(TINT) }); F('sofa', L + 0.55, vS, 'u+', { tint, col: [2.1, 0.95, 0.85] }); F('ctable', L + 1.85, vS, 'u+', { col: [1.05, 0.55, 0.45] }); F('picture', L + 0.04, vS, 'u+', { y: 1.6, tint: pick(TINT) }); F('lamp', L + 0.4, vS + 1.45, 'u+');
+        const dx = clamp(w / 4 - 0.2, L + 3.6, Rr - 1.2), dv = D / 2 - 0.5; if (dx - 0.76 > L + 2.5) { F('dtable', dx, dv, 'v-', { col: [1.5, 0.87, 0.8] }); F('chair', dx - 0.4, dv - 0.72, 'v+'); F('chair', dx + 0.4, dv + 0.72, 'v-'); }
+        if (w > 7.5) { F('bed', Rr - 1.0, 1.35, 'v+', { tint: pick(TINT), col: [1.72, 2.1, 0.65] }); F('bedside', Rr - 2.15, 0.42, 'v+', { col: [0.46, 0.42, 0.55] }); } else F('plant', Rr - 0.45, 0.55, 'v+', { ry: R(0, 6) }); }
     }
   }
   useArea('city');
@@ -594,7 +657,7 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
   { const C = POIS.find(p => p.type === 'camp');
     if (C) { useArea('road');
       const X0 = C.x - 23, X1 = C.x + 23, Z0 = C.z - 19, Z1 = C.z + 19, H = 3.0, gw = 4.4;
-      CITY.campSpot = { x: C.x, z: C.z, X0, X1, Z0, Z1, gate: [C.x, Z0] };
+      CITY.campSpot = { x: C.x, z: C.z, X0, X1, Z0, Z1, gate: [C.x, Z0], towers: [[X0 + 1.5, Z0 + 1.5], [X1 - 1.5, Z0 + 1.5], [X0 + 1.5, Z1 - 1.5], [X1 - 1.5, Z1 - 1.5]].map(([x, z]) => ({ x, z, y: Y + 4.2, lx: x + 1.15, lz: z - 1.9 })) };
       SOL.box(C.x, Y + 0.02, C.z, X1 - X0, 0.04, Z1 - Z0, 0x8a8070); // grava
       ASM.box(C.x, Y + 0.02, (Z0 + 3) / 2, 5, 0.04, Z0 - 3, 0xffffff); // camino hasta la puerta
       const wall = (ax, az, bx, bz) => { const alongX = az === bz, len = alongX ? Math.abs(bx - ax) : Math.abs(bz - az), cx = (ax + bx) / 2, cz = (az + bz) / 2;
@@ -663,6 +726,11 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
       { const gx0 = C.x - gw / 2 - 0.35, gx1 = C.x + gw / 2 + 0.35; for (const gx of [gx0, gx1]) { WOD.box(gx, Y + 2.4, Z0, 0.4, 4.8, 0.4, 0x5a4632); FLAT.box(gx, Y + 3.3, Z0 - 0.23, 0.5, 1.5, 0.03, 0x9a1c22); FLAT.box(gx, Y + 3.3, Z0 - 0.25, 0.22, 0.22, 0.02, 0xe8d8a0); MET.box(gx, Y + 4.9, Z0, 0.1, 0.5, 0.1, 0x3a3a40); LMP.box(gx, Y + 5.2, Z0, 0.3, 0.24, 0.3, 0xfff0c0); }
         WOD.box(C.x, Y + 4.45, Z0, gw + 1.2, 0.3, 0.34, 0x6a5238); WOD.box(C.x, Y + 3.9, Z0, gw + 0.4, 0.9, 0.1, 0x3a2a1c);
         for (const s2 of [-1, 1]) { const sm = signMesh('LA ORDEN', '#2a1c12', '#ffb43a', 4.3); sm.position.set(C.x, Y + 3.9, Z0 + s2 * 0.07); sm.rotation.y = s2 < 0 ? Math.PI : 0; scene.add(sm); } }
+      // ametralladoras montadas en las torres (se usan subiendo por la escalera)
+      for (const t of CITY.campSpot.towers) { const sx = t.x < C.x ? -1 : 1, sz = t.z < C.z ? -1 : 1, ang = Math.atan2(sx, sz); const gxm = t.x + sx * 0.75, gzm = t.z + sz * 0.75;
+        rbx(MET, gxm, Y + 5.0, gzm, 0.06, 1.1, 0.06, 0x2a2a2e); rbx(MET, gxm, Y + 5.56, gzm, 0.14, 0.16, 0.7, 0x1c1e22, -0.12, ang, 0); rbx(MET, gxm + Math.sin(ang) * 0.75, Y + 5.65, gzm + Math.cos(ang) * 0.75, 0.035, 0.035, 0.9, 0x101114, -0.12, ang, 0, geoCyl.clone().rotateX(Math.PI / 2));
+        rbx(MET, gxm - Math.cos(ang) * 0.2, Y + 5.48, gzm + Math.sin(ang) * 0.2, 0.22, 0.2, 0.3, 0x4a5a3a, 0, ang, 0);
+        WOD.box(t.lx, Y + 0.06, t.lz, 0.9, 0.1, 0.9, 0xb89a70); FLAT.box(t.lx, Y + 1.5, t.lz + 0.62, 0.5, 0.3, 0.03, 0xd8c020); }
       // estandartes en las torres y focos
       for (const [tx, tz] of [[X0 + 1.5, Z0 + 1.5], [X1 - 1.5, Z0 + 1.5], [X0 + 1.5, Z1 - 1.5], [X1 - 1.5, Z1 - 1.5]]) { const sx = tx < C.x ? -1 : 1, sz = tz < C.z ? -1 : 1; FLAT.box(tx + sx * 1.33, Y + 3.6, tz, 0.03, 1.5, 0.9, 0x9a1c22); FLAT.box(tx, Y + 3.6, tz + sz * 1.33, 0.9, 1.5, 0.03, 0x9a1c22); MET.box(tx, Y + 6.6, tz, 0.06, 1.2, 0.06, 0x3a3a40); FLAT.box(tx + 0.3, Y + 7.0, tz, 0.6, 0.36, 0.02, 0x9a1c22); LMP.box(tx - sx * 1.1, Y + 5.75, tz - sz * 1.1, 0.3, 0.2, 0.3, 0xfff6d8); for (let k = 0; k < 5; k++) { m4.compose(ps.set(tx + sx * (0.6 - k * 0.3), Y + 4.62, tz + sz * 1.05), q.identity(), sc.set(0.3, 0.14, 0.2)); SOL.geo(geoSph, m4, 0xa8946a); } }
       // estacas afiladas por fuera del muro y chatarra de refuerzo
@@ -690,6 +758,45 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
   }
   // carreteras entre pueblos
   useArea('road');
+  // ---------- bases de otras bandas ----------
+  CITY.gangSpots = {};
+  { useArea('road'); const geoPr = new THREE.CylinderGeometry(1, 1, 1, 3); geoPr.rotateX(Math.PI / 2); geoPr.rotateZ(Math.PI);
+    const THEME = { buitres: { c: 0x8a2a1a, c2: 0x3a3a3e, fg: '#ff5a3a', bg: '#1a1210' }, guardia: { c: 0x2a4a7a, c2: 0x4a5a6a, fg: '#e8f0ff', bg: '#14202e' }, germandat: { c: 0x6a2a7a, c2: 0x5a4a3a, fg: '#f0d890', bg: '#1e1422' }, mercaders: { c: 0xc8922a, c2: 0x6a5a3a, fg: '#ffe9a0', bg: '#2a2010' } };
+    for (const G of POIS.filter(p => p.type === 'gang')) {
+      const th = THEME[G.gang], [gx, gz] = G.gd, W = 40, D = 34, H = 3.2, gw = 5, fx = -gx, fz = -gz, rx = -fz, rz = fx, ox = G.x + gx * D / 2, oz = G.z + gz * D / 2, alongX = gz !== 0, ry0 = Math.atan2(gx, gz);
+      const L = (lx, lz) => [ox + rx * lx + fx * lz, oz + rz * lx + fz * lz];
+      const lb = (M, lx, y, lz, w, h, d, col) => { const [x, z] = L(lx, lz); M.box(x, Y + y, z, alongX ? w : d, h, alongX ? d : w, col); };
+      const lcol = (lx, lz, w, d, h) => { const [x, z] = L(lx, lz), hw = (alongX ? w : d) / 2, hd = (alongX ? d : w) / 2; addBox(x - hw, Y, z - hd, x + hw, Y + h, z + hd); };
+      const lr = (M, lx, y, lz, w, h, d, col, rxx = 0, ryy = 0, rzz = 0, geo) => { const [x, z] = L(lx, lz); rbx(M, x, Y + y, z, w, h, d, col, rxx, ry0 + ryy, rzz, geo); };
+      lb(SOL, 0, 0.02, D / 2, W, 0.04, D, 0x857a6a); lb(ASM, 0, 0.02, -6, 6, 0.04, 12, 0xffffff); lb(DEC, 0, 0.05, D / 2 - 3, 3.2, 0.01, D - 8, 0x6e6252);
+      const wallSeg = (ax, az, bx, bz) => { const len = Math.hypot(bx - ax, bz - az), n = Math.round(len / 2), ux = (bx - ax) / len, uz = (bz - az) / len, lat = ux !== 0, w = len / n;
+        for (let k = 0; k < n; k++) { const t = (k + 0.5) * w, lx = ax + ux * t, lz = az + uz * t; lb(STN, lx, 0.5, lz, lat ? w - 0.04 : 0.6, 1.0, lat ? 0.6 : w - 0.04, 0xb8b4a8); lb(MET, lx, 1.0 + (H - 1) / 2, lz, lat ? w : 0.07, H - 1, lat ? 0.07 : w, rand() < 0.3 ? th.c : pick([0x8a8c92, 0x9a7a5a, 0x6a6e74, th.c2])); if (k % 2 === 0) lb(WOD, lx - ux * w / 2, H / 2 + 0.2, lz - uz * w / 2, 0.2, H + 0.4, 0.2, 0x5a4632); if (rand() < 0.6) lb(MET, lx, H + 0.3, lz, lat ? w : 0.05, 0.05, lat ? 0.05 : w, 0x5a5a62); }
+        lcol((ax + bx) / 2, (az + bz) / 2, lat ? len : 0.8, lat ? 0.8 : len, H + 0.5); };
+      wallSeg(-W / 2, 0, -gw / 2, 0); wallSeg(gw / 2, 0, W / 2, 0); wallSeg(-W / 2, D, W / 2, D); wallSeg(-W / 2, 0, -W / 2, D); wallSeg(W / 2, 0, W / 2, D);
+      // arco con rótulo y banderas
+      for (const sx of [-1, 1]) { lb(WOD, sx * (gw / 2 + 0.3), 2.5, 0, 0.45, 5.0, 0.45, 0x4a3a2a); lb(FLAT, sx * (gw / 2 + 0.3), 3.4, -0.26, 0.55, 1.6, 0.03, th.c); lb(LMP, sx * (gw / 2 + 0.3), 5.15, 0, 0.3, 0.24, 0.3, 0xffe8b0); }
+      lb(WOD, 0, 4.7, 0, gw + 1.4, 0.3, 0.36, 0x5a4632); lb(WOD, 0, 4.1, 0, gw + 0.6, 1.0, 0.1, 0x2a2018);
+      for (const s2 of [-1, 1]) { const sm = signMesh(G.name.toUpperCase(), th.bg, th.fg, gw + 0.2); const [sx2, sz2] = L(0, s2 * 0.08); sm.position.set(sx2, Y + 4.1, sz2); sm.rotation.y = ry0 + (s2 > 0 ? Math.PI : 0); scene.add(sm); }
+      // torres de las esquinas delanteras
+      for (const sx of [-1, 1]) { const tx = sx * (W / 2 - 2), tz = 2; for (const a of [-1, 1]) for (const b of [-1, 1]) lb(WOD, tx + a * 1.1, 2.5, tz + b * 1.1, 0.16, 5.0, 0.16, 0x5a4632); lb(WOD, tx, 4.3, tz, 2.6, 0.12, 2.6, 0xa07a50); for (const a of [-1, 1]) { lb(MET, tx + a * 1.25, 4.85, tz, 0.07, 1.0, 2.5, th.c2); lb(MET, tx, 4.85, tz + a * 1.25, 2.5, 1.0, 0.07, a < 0 ? th.c : th.c2); } lb(MET, tx, 5.95, tz, 3.0, 0.08, 3.0, 0x4a4a52); lb(FLAT, tx, 6.8, tz, 0.05, 1.6, 0.05, 0x2a2a2e); lb(FLAT, tx + 0.35, 7.3, tz, 0.7, 0.45, 0.03, th.c); lcol(tx, tz, 2.4, 2.4, 2); }
+      // barracón al fondo
+      { const hz = D - 5; lb(WOD, 0, 1.8, hz, 14, 3.6, 6.5, 0x7a6248); for (let k = 0; k < 7; k++) lb(WOD, -6 + k * 2, 1.8, hz - 3.27, 0.12, 3.6, 0.06, 0x5a4632); lb(MET, 0, 3.72, hz, 14.8, 0.14, 7.4, 0x6a6e74); lb(MET, 2, 3.8, hz - 1, 5, 0.1, 3, 0x8a5a3a); lb(WOD, 0, 1.1, hz - 3.28, 1.3, 2.2, 0.08, 0x2a2018); for (const sx of [-4.2, 4.2]) { lb(LMP, sx, 2.0, hz - 3.28, 1.3, 0.9, 0.06, 0xffd890); lb(WOD, sx, 2.0, hz - 3.3, 0.08, 0.9, 0.08, 0x3a2a1c); } lb(FLAT, 0, 3.0, hz - 3.3, 3.2, 0.9, 0.04, th.c); lcol(0, hz, 14, 6.5, 3.6); }
+      // tiendas, hoguera, cajas y bidones
+      for (const [tx, tz] of [[-13, 11], [-13, 19], [13, 20]]) { lr(SOL, tx, 0.63, tz, 2.9 / 1.732, 1.9 / 1.5, 3.8, pick([0x55663a, 0x6a5238, th.c2]), 0, 0, 0, geoPr); lr(SOL, tx, 0.61, tz, 2.9 / 1.732 * 0.72, 1.9 / 1.5 * 0.72, 3.86, 0x14140f, 0, 0, 0, geoPr); lcol(tx, tz, 2.9, 3.8, 1.8); }
+      { const [cx, cz] = L(0, 14); for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; rbx(STN, cx + Math.cos(a) * 0.7, Y + 0.12, cz + Math.sin(a) * 0.7, 0.2, 0.2, 0.2, 0x8a8478, 0, a, 0, geoSph); } rbx(LMP, cx, Y + 0.35, cz, 0.3, 0.6, 0.3, 0xff9a2a, 0, 0.6, 0); rbx(LMP, cx + 0.1, Y + 0.3, cz - 0.1, 0.2, 0.4, 0.2, 0xffd040, 0, 0.2, 0); for (const a of [0.4, 2.2, 4.1]) rbx(BRKT, cx + Math.cos(a) * 1.8, Y + 0.2, cz + Math.sin(a) * 1.8, 0.2, 1.5, 0.2, 0xffffff, 0, -a, Math.PI / 2, geoCyl); addCircle(cx, cz, 0.7, Y, Y + 0.5); }
+      for (let k = 0; k < 9; k++) { const lx = pick([-1, 1]) * R(15, 18), lz = R(6, D - 9), [x, z] = L(lx, lz), n = RI(1, 3); if (rand() < 0.6) { for (let j = 0; j < n; j++) rbx(WOD, x, Y + 0.42 + j * 0.84, z, 0.84, 0.82, 0.84, pick([0xb8834a, 0xa87840, 0x5a6a3a, th.c]), 0, R(-0.2, 0.2), 0); addBox(x - 0.45, Y, z - 0.45, x + 0.45, Y + n * 0.84, z + 0.45); } else { rbx(MET, x, Y + 0.45, z, 0.32, 0.9, 0.32, pick([0x2a5a9a, 0x8a2a2a, 0x4a5a3a, th.c]), 0, 0, 0, geoCyl); addCircle(x, z, 0.35, Y, Y + 0.9); } }
+      // detalles propios de cada banda
+      if (G.gang === 'buitres') { for (const [lx, lz, a] of [[10, 8, 0.4], [-8, 26, 1.2], [9, 12.5, 2.0]]) { const [x, z] = L(lx, lz); car(x, z, a, pick([0x4a4a4a, 0x6a3a2a, 0x3a4a5a]), 2); } for (const [lx, lz] of [[6, 5], [-6, 6], [16, 26]]) { const [x, z] = L(lx, lz); for (let j = 0; j < 4; j++) rbx(MET, x, Y + 0.13 + j * 0.26, z, 0.42, 0.25, 0.42, 0x18181a, 0, 0, 0, geoCyl); addCircle(x, z, 0.45, Y, Y + 1); } for (let k = -3; k <= 3; k++) lr(WOD, k * 1.2 + (k >= 0 ? 4 : -4), 0.6, -2.2, 0.12, 1.9, 0.12, 0x5a4028, -0.8, 0, 0); }
+      if (G.gang === 'guardia') { for (const [lx, lz] of [[-5.5, -4], [5.5, -4], [0, -9]]) { for (let r = 0; r < 3; r++) for (let k = 0; k < 4 - r; k++) { const [x, z] = L(lx - 1.1 + k * 0.72 + r * 0.36, lz); rbx(SOL, x, Y + 0.14 + r * 0.24, z, 0.38, 0.14, 0.25, 0xa8946a, 0, alongX ? 0 : Math.PI / 2, 0, geoSph); } lcol(lx, lz, 3, 0.6, 0.8); } for (const sx of [-10, 10]) { lb(MET, sx, 3, 9, 0.12, 6, 0.12, 0x3a3a40); lb(LMP, sx, 6.1, 9, 0.7, 0.3, 0.4, 0xf4f8ff); } }
+      if (G.gang === 'germandat') { for (const sx of [-2.6, 2.6]) for (let lz = 4; lz < D - 10; lz += 4.5) { lb(WOD, sx, 0.9, lz, 0.1, 1.8, 0.1, 0x3a2a1c); lb(LMP, sx, 1.9, lz, 0.18, 0.28, 0.18, 0xff9a2a); } lb(FLAT, 0, 2.2, D - 8.32, 0.5, 2.6, 0.03, 0xf0d890); for (const sx of [-6.5, 6.5]) lb(FLAT, sx, 2.0, D - 8.32, 1.2, 2.8, 0.03, th.c); }
+      if (G.gang === 'mercaders') { for (const [lx, lz] of [[-8, 7], [8, 7], [-8, 14.5], [8, 14.5]]) { const aw = pick([0xb84a3a, 0x3a6a9a, 0x4a8a4a, 0xc8a83a]); lb(WOD, lx, 0.9, lz, 3.4, 0.1, 1.4, 0xa88a62); for (const a of [-1.6, 1.6]) for (const b of [-0.6, 0.6]) lb(WOD, lx + a, 1.15, lz + b, 0.08, 2.3, 0.08, 0x6a4a32); for (let k = 0; k < 6; k++) lb(SOL, lx - 1.45 + k * 0.58, 2.35, lz, 0.56, 0.06, 1.9, k % 2 ? aw : 0xe8e0d0); for (let k = 0; k < 6; k++) { const [x, z] = L(lx - 1.3 + k * 0.5, lz + R(-0.3, 0.3)); rbx(SOL, x, Y + 1.05, z, 0.13, 0.11, 0.13, pick([0xc83a2a, 0xe8a020, 0x4a9a3a, 0xd8c890]), 0, 0, 0, geoSph); } lcol(lx, lz, 3.4, 1.4, 1); } }
+      // poste de parlamento en el camino, fuera del alcance de los guardias
+      { const [px, pz] = L(4.3, -26); WOD.box(px, Y + 1.6, pz, 0.14, 3.2, 0.14, 0x5a4632); FLAT.box(px, Y + 2.75, pz, alongX ? 0.9 : 0.03, 0.6, alongX ? 0.03 : 0.9, th.c); WOD.box(px, Y + 1.5, pz, alongX ? 1.3 : 0.06, 0.8, alongX ? 0.06 : 1.3, 0xd8d0b8); MET.box(px, Y + 0.95, pz, 0.3, 0.2, 0.3, 0x2a2a2e); LMP.box(px, Y + 1.08, pz, 0.06, 0.06, 0.06, 0x5aff6a); addCircle(px, pz, 0.2, Y, Y + 3); }
+      const cs = [L(-W / 2, 0), L(W / 2, D)];
+      CITY.gangSpots[G.gang] = { id: G.gang, name: G.name, x: G.x, z: G.z, X0: Math.min(cs[0][0], cs[1][0]), X1: Math.max(cs[0][0], cs[1][0]), Z0: Math.min(cs[0][1], cs[1][1]), Z1: Math.max(cs[0][1], cs[1][1]), gate: L(0, 0), out: L(0, -9), parley: L(4.3, -26), far: L(0, -40), stash: L(4.5, D - 9.6),
+        spots: [L(0, D - 9.8), L(-3.3, 2.6), L(3.3, 2.6), L(-11, 6), L(11, 6), L(-2.6, 13), L(3, 15.5), L(-9, 22), L(9, 25)] };
+    }
+  }
   for (const [ax, az, bx2, bz2] of ROADS) {
     const alongZ = ax === bx2, cx = (ax + bx2) / 2, cz = (az + bz2) / 2, len = alongZ ? Math.abs(bz2 - az) : Math.abs(bx2 - ax);
     ASM.box(cx, Y + 0.02, cz, alongZ ? 8 : len, 0.04, alongZ ? len : 8, 0xffffff);
@@ -735,6 +842,11 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
       const pm = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xc8c0b0, size: 0.028, transparent: true, opacity: 0.45, depthWrite: false, sizeAttenuation: true })); pm.frustumCulled = false; scene.add(pm); CITY.ash = pm;
       CITY.anim.push((t, dt) => { const cp = camera.position; for (let i = 0; i < N; i++) { let x = pa[i * 3] + (Math.sin(t * 0.4 + sd[i]) * 0.25 + 0.35) * dt, y = pa[i * 3 + 1] - (0.12 + (i % 5) * 0.03) * dt, z = pa[i * 3 + 2] + Math.cos(t * 0.3 + sd[i]) * 0.25 * dt; if (x > 18) x -= 36; if (y < 0) y += 9; if (z > 18) z -= 36; if (z < -18) z += 36; pa[i * 3] = x; pa[i * 3 + 1] = y; pa[i * 3 + 2] = z; } pg.attributes.position.needsUpdate = true; pm.position.set(cp.x, cp.y - 3, cp.z); }); }
   }
+  // ---------- muebles: una malla instanciada por tipo y celda; solo se dibujan las celdas cercanas ----------
+  CITY.furCells = [];
+  for (const [key, cell] of FCELL) { const g = new THREE.Group(), [ix, iz] = key.split('_').map(Number); let n = 0;
+    for (const name in cell) { const a = cell[name], im = new THREE.InstancedMesh(FPROTO[name], FM, a.length / 2), col = new THREE.Color(); for (let i = 0; i < a.length; i += 2) { im.setMatrixAt(i / 2, a[i]); im.setColorAt(i / 2, col.set(a[i + 1])); } im.frustumCulled = false; im.castShadow = false; im.receiveShadow = true; g.add(im); n += a.length / 2; }
+    g.visible = false; scene.add(g); CITY.furCells.push([g, (ix + 0.5) * FCS, (iz + 0.5) * FCS]); }
   // ---------- mallas finales ----------
   const DECMAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMapIntensity: 0.15, polygonOffset: true, polygonOffsetFactor: -2 });
   CITY.areas = [];
@@ -750,6 +862,7 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
   }
   CITY.cullTick = (cp) => {
     for (const me of CITY.cull) { if (me.userData.gone) { me.visible = false; continue; } const d = Math.abs(me.position.x - cp.x) + Math.abs(me.position.z - cp.z); me.visible = d < (me.userData.cd || 90); }
+    for (const [g, x, z] of CITY.furCells) g.visible = Math.abs(x - cp.x) + Math.abs(z - cp.z) < 96;
     if (CITY.cullUp) for (const [g, x, z] of CITY.cullUp) { if (g.userData.hidden) continue; g.visible = Math.abs(x - cp.x) + Math.abs(z - cp.z) < 300; }
     for (const a of CITY.areas) { const dx = Math.max(a.x0 - cp.x, 0, cp.x - a.x1), dz = Math.max(a.z0 - cp.z, 0, cp.z - a.z1); a.g.visible = Math.hypot(dx, dz) < 260; }
   };

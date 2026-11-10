@@ -196,7 +196,7 @@ const HUMAN = (() => {
     const hipW = (F ? 0.1 : 0.094) * BW, shX = 0.195 * SH, yHead = 1.595, yWr = 0.88;
     lL.position.set(-hipW, 0.93, 0); lR.position.set(hipW, 0.93, 0); kL.position.y = kR.position.y = -0.46;
     body.position.y = 0.93; body.userData.y0 = 0.93; aL.position.set(-shX, 0.5, 0); aR.position.set(shX, 0.5, 0); eL.position.y = eR.position.y = -0.285; hL.position.y = hR.position.y = -0.265; head.position.y = 0.665;
-    const P = { rig, body, head, lL, lR, kL, kR, aL, aR, eL, eR, hand: hR, handL: hL };
+    const P = { rig, body, head, lL, lR, kL, kR, aL, aR, eL, eR, hand: hR, handL: hL }; const HSCL = 1.16;
     const pieces = [], headSkin = [];
     const add = (geo, col, cell, w) => { if (geo) pieces.push({ geo, col: hex(col), cell, w }); };
     const rigid = (bi, geo, col, cell, px, py, pz, sx, sy, sz, rx = 0, ry = 0, rz = 0) => { const g = geo.index ? geo.toNonIndexed() : geo.clone(); g.applyMatrix4(_m.compose(_p.set(px, py, pz), _q.setFromEuler(_e.set(rx, ry, rz)), _s.set(sx, sy, sz))); add(g, col, cell, bi); };
@@ -205,27 +205,27 @@ const HUMAN = (() => {
     const sg = hi ? 12 : 8, pv = (F ? 1.07 : 1) * BW, boots = outfit === 'military' || outfit === 'overalls' || outfit === 'hivis';
     // ----- piernas -----
     for (const s of [-1, 1]) {
-      const li = s < 0 ? 3 : 4, ki = s < 0 ? 5 : 6, cx = s * hipW, th = (F ? 1.05 : 1) * LIMB, torn = Z && rnd() < 0.3;
-      const LR = [[0.97, 0.06 * th, 0.065, cx], [0.9, 0.088 * th, 0.092 * th, cx], [0.8, 0.088 * th, 0.094 * th, cx], [0.66, 0.076 * th, 0.082 * th, cx], [0.53, 0.062 * th, 0.066, cx], [0.47, 0.058, 0.061, cx, -0.004], [0.4, 0.055 * LIMB, 0.058 * LIMB, cx, 0.002], [0.33, 0.056 * LIMB, 0.062 * LIMB, cx, 0.008], [0.2, 0.044, 0.046, cx, 0.004], [0.1, 0.037, 0.04, cx], [0.085, 0.035, 0.038, cx]];
+      const li = s < 0 ? 3 : 4, ki = s < 0 ? 5 : 6, cx = s * hipW, th = (F ? 1.12 : 1.1) * LIMB, torn = Z && rnd() < 0.3;
+      const LR = [[0.97, 0.06 * th, 0.065, cx], [0.9, 0.088 * th, 0.092 * th, cx], [0.8, 0.088 * th, 0.094 * th, cx], [0.66, 0.076 * th, 0.082 * th, cx], [0.53, 0.062 * th, 0.066, cx], [0.47, 0.058, 0.061, cx, -0.004], [0.4, 0.06 * LIMB, 0.063 * LIMB, cx, 0.002], [0.33, 0.061 * LIMB, 0.068 * LIMB, cx, 0.01], [0.2, 0.048, 0.051, cx, 0.005], [0.1, 0.04, 0.043, cx], [0.085, 0.039, 0.042, cx]];
       const wl = (x, y) => [li, ki, sstep(0.54, 0.4, y)], vf = y => (y - 0.085) / 0.885, yCut = torn ? 0.3 + rnd() * 0.14 : 0.085;
       add(tube([cap(LR[0], 0.004), ...sub(LR, 0.97, yCut, 0.003)], sg, vf), pants, CI.pants, wl);
       if (torn) add(tube(sub(LR, yCut + 0.01, 0.085, -0.004), sg, vf), skin, CI.skin, wl);
       if (boots) add(tube(sub(LR, 0.27, 0.085, 0.009), sg), shoes, CI.gear, ki);
-      add(sculpt(hi ? 12 : 8, hi ? 8 : 6, (dx, dy, dz) => { let y = 0.052 + dy * 0.052; if (dz < 0) y = 0.014 + (y - 0.014) * (1 + dz * 0.42); return [cx + dx * 0.05 * (1 + Math.max(0, -dz) * 0.08), Math.max(0.012, y), -0.035 + dz * 0.128]; }), shoes, CI.gear, ki);
-      rigid(ki, G.box, boots ? shade(shoes, -0.45) : 0x2a2826, CI.white, cx, 0.011, -0.037, 0.098, 0.022, 0.255);
+      add(sculpt(hi ? 12 : 8, hi ? 8 : 6, (dx, dy, dz) => { let y = 0.052 + dy * 0.052; if (dz < 0) y = 0.014 + (y - 0.014) * (1 + dz * 0.42); return [cx + dx * 0.056 * (1 + Math.max(0, -dz) * 0.1), Math.max(0.012, y * 1.08), -0.04 + dz * 0.136]; }), shoes, CI.gear, ki);
+      rigid(ki, G.box, boots ? shade(shoes, -0.45) : 0x2a2826, CI.white, cx, 0.011, -0.042, 0.108, 0.022, 0.27);
     }
     // ----- pelvis y tronco -----
     add(tube([[0.995, 0.166 * pv, 0.107], [0.93, 0.17 * pv, 0.11], [0.86, 0.172 * pv, 0.113], [0.8, 0.13 * pv, 0.1], [0.765, 0.03, 0.04]], hi ? 18 : 12), pants, CI.pelvis, 1);
     const cb = -(BELLY - 1) * 0.07;
-    const T = F ? [[0.955, 0.174 * pv, 0.112], [1.04, 0.142 * BW * BELLY, 0.1 * BELLY, 0, cb], [1.14, 0.14 * BW, 0.102, 0, cb * 0.5], [1.26, 0.153 * SH, 0.12, 0, -0.014], [1.33, 0.16 * SH, 0.112, 0, -0.008], [1.42, 0.158 * SH, 0.092], [1.48, 0.128 * SH, 0.078, 0, 0.004], [1.52, 0.07, 0.058, 0, 0.006], [1.545, 0.046, 0.047, 0, 0.008]]
-      : [[0.955, 0.172 * BW * BELLY, 0.112 * BELLY, 0, cb], [1.04, 0.162 * BW * BELLY, 0.106 * BELLY, 0, cb], [1.14, 0.163 * BW, 0.107, 0, cb * 0.4], [1.25, 0.177 * SH, 0.117, 0, -0.004], [1.35, 0.187 * SH, 0.113, 0, -0.002], [1.43, 0.183 * SH, 0.098], [1.485, 0.148 * SH, 0.083, 0, 0.004], [1.52, 0.082, 0.062, 0, 0.006], [1.545, 0.053, 0.053, 0, 0.008]];
+    const T = F ? [[0.955, 0.174 * pv, 0.112], [1.04, 0.142 * BW * BELLY, 0.1 * BELLY, 0, cb], [1.14, 0.14 * BW, 0.102, 0, cb * 0.5], [1.26, 0.153 * SH, 0.12, 0, -0.014], [1.33, 0.16 * SH, 0.112, 0, -0.008], [1.42, 0.168 * SH, 0.095], [1.48, 0.15 * SH, 0.082, 0, 0.004], [1.52, 0.08, 0.06, 0, 0.006], [1.545, 0.046, 0.047, 0, 0.008]]
+      : [[0.955, 0.172 * BW * BELLY, 0.112 * BELLY, 0, cb], [1.04, 0.162 * BW * BELLY, 0.106 * BELLY, 0, cb], [1.14, 0.163 * BW, 0.107, 0, cb * 0.4], [1.25, 0.177 * SH, 0.117, 0, -0.004], [1.35, 0.187 * SH, 0.113, 0, -0.002], [1.43, 0.195 * SH, 0.102], [1.485, 0.172 * SH, 0.088, 0, 0.004], [1.52, 0.094, 0.066, 0, 0.006], [1.545, 0.053, 0.053, 0, 0.008]];
     add(tube([...T, cap(T[T.length - 1], 0.003)], hi ? 20 : 12, y => (y - 0.955) / 0.59), top, CI[outfit], 1);
     const patch = (u0, u1, ya, yb, infl, col, cell, nu = 6, nv = 4) => { const Pp = [], U = [], I = [], yT = Math.max(ya, yb), yL = Math.min(ya, yb);
       for (let iv = 0; iv <= nv; iv++) { const r = ringAt(T, yT + (yL - yT) * iv / nv); for (let iu = 0; iu <= nu; iu++) { const a = (u0 + (u1 - u0) * iu / nu) * Math.PI * 2; Pp.push(r[3] - (r[1] + infl) * Math.sin(a), r[0], r[4] + (r[2] + infl) * Math.cos(a)); U.push(iu / nu, 1 - iv / nv); } }
       for (let r = 0; r < nv; r++) for (let j = 0; j < nu; j++) { const a = r * (nu + 1) + j, b = a + 1, c = a + nu + 1, d = c + 1; I.push(a, b, c, b, d, c); } add(mkGeo(Pp, U, I), col, cell, 1); };
     if (outfit === 'overalls') { patch(0, 1, 0.955, 1.05, 0.005, pants, CI.pants, 14, 1); patch(0.33, 0.67, 1.04, 1.34, 0.006, pants, CI.pants); for (const u of [0.37, 0.63, 0.1, 0.9]) patch(u - 0.022, u + 0.022, 1.04, 1.5, 0.007, pants, CI.pants, 1, 5); patch(0.44, 0.56, 1.14, 1.26, 0.009, shade(pants, -0.18), CI.gear, 2, 2); }
     if (outfit === 'hivis') { const v = Z ? 0xc8a020 : 0xe8d020; patch(0.265, 0.485, 0.98, 1.47, 0.006, v, CI.gear, 5, 5); patch(0.515, 0.735, 0.98, 1.47, 0.006, v, CI.gear, 5, 5); patch(0.765, 1.235, 0.98, 1.47, 0.006, v, CI.gear, 8, 5); for (const y of [1.08, 1.24]) { patch(0.265, 0.485, y, y + 0.045, 0.009, 0xc8ccd0, CI.white, 5, 1); patch(0.515, 0.735, y, y + 0.045, 0.009, 0xc8ccd0, CI.white, 5, 1); patch(0.765, 1.235, y, y + 0.045, 0.009, 0xc8ccd0, CI.white, 8, 1); } }
-    if (['jacket', 'shirt', 'track', 'military'].includes(outfit)) add(tube([[1.5, 0.078, 0.07, 0, 0.004], [1.548, 0.064, 0.062, 0, 0.007], [1.572, 0.068, 0.066, 0, 0.007], [1.574, 0.055, 0.054, 0, 0.007]], hi ? 14 : 8), shade(top, -0.06), CI.sleeve, 1);
+    if (['jacket', 'shirt', 'track', 'military'].includes(outfit)) add(tube([[1.5, 0.082, 0.072, 0, 0.004], [1.535, 0.068, 0.064, 0, 0.007], [1.553, 0.071, 0.068, 0, 0.007], [1.555, 0.057, 0.056, 0, 0.007]], hi ? 14 : 8), shade(top, -0.06), CI.sleeve, 1);
     if (outfit === 'hoodie') add(sculpt(10, 7, (dx, dy, dz) => [dx * 0.12, 1.5 + dy * 0.06, 0.07 + dz * 0.065]), top, CI.sleeve, 1);
     if (o.backpack) { const bp = hex(o.backpack), sq = v => Math.sign(v) * Math.pow(Math.abs(v), 0.55);
       add(sculpt(10, 8, (dx, dy, dz) => [sq(dx) * 0.14, 1.25 + sq(dy) * 0.2, 0.17 + sq(dz) * 0.075]), bp, CI.gear, 1);
@@ -235,14 +235,15 @@ const HUMAN = (() => {
     // ----- brazos y manos -----
     const shortSleeve = outfit === 'scrubs' || o.sleeves === 'short';
     for (const s of [-1, 1]) {
-      const ai = s < 0 ? 7 : 8, ei = s < 0 ? 9 : 10, hi2 = s < 0 ? 11 : 12, cx = s * shX, ua = LIMB * (F ? 0.86 : 1), short = shortSleeve || (Z && rnd() < 0.3), lost = Z && rnd() < 0.1;
-      const A = [[1.48, 0.02, 0.02, cx - s * 0.012], [1.463, 0.046 * ua, 0.048 * ua, cx - s * 0.006], [1.43, 0.058 * ua, 0.06 * ua, cx], [1.36, 0.056 * ua, 0.058 * ua, cx], [1.26, 0.05 * ua, 0.052 * ua, cx], [1.17, 0.044 * ua, 0.046 * ua, cx], [1.145, 0.043 * ua, 0.045 * ua, cx], [1.1, 0.045 * ua, 0.046 * ua, cx], [1.0, 0.039 * ua, 0.04 * ua, cx], [0.92, 0.031, 0.03, cx], [0.885, 0.028, 0.025, cx]];
-      const wa = (x, y) => y > 1.3 ? [ai, 1, sstep(1.405, 1.48, y) * 0.5] : [ai, ei, sstep(1.21, 1.08, y)], vf = y => (y - 0.885) / 0.6, slc = outfit === 'hivis' ? top : top;
+      const ai = s < 0 ? 7 : 8, ei = s < 0 ? 9 : 10, hi2 = s < 0 ? 11 : 12, cx = s * shX, ua = LIMB * (F ? 0.96 : 1.15), short = shortSleeve || (Z && rnd() < 0.3), lost = Z && rnd() < 0.1;
+      const A = [[1.492, 0.022, 0.03, cx - s * 0.03], [1.478, 0.05 * ua, 0.056 * ua, cx - s * 0.014], [1.44, 0.062 * ua, 0.064 * ua, cx - s * 0.002], [1.36, 0.057 * ua, 0.059 * ua, cx], [1.26, 0.05 * ua, 0.052 * ua, cx], [1.17, 0.044 * ua, 0.046 * ua, cx], [1.145, 0.043 * ua, 0.045 * ua, cx], [1.1, 0.045 * ua, 0.046 * ua, cx], [1.0, 0.04 * ua, 0.041 * ua, cx], [0.92, 0.033, 0.032, cx], [0.885, 0.03, 0.027, cx]];
+      const wa = (x, y) => y > 1.3 ? [ai, 1, sstep(1.405, 1.49, y) * 0.5] : [ai, ei, sstep(1.21, 1.08, y)], vf = y => Math.min(0.86, (y - 0.885) / 0.6), slc = outfit === 'hivis' ? top : top;
       const yEnd = lost ? 1.04 : 0.885, ySl = short ? 1.27 : Math.max(yEnd, 0.9);
-      add(tube(sub(A, 1.48, ySl, 0.004), sg, vf), slc, CI.sleeve, wa);
+      add(tube([cap(A[0], 0.004), ...sub(A, 1.492, ySl, 0.004)], sg, vf), slc, CI.sleeve, wa);
       if (ySl > yEnd + 0.01) add(tube(sub(A, ySl + 0.012, yEnd), sg, vf), skin, CI.skin, wa);
       if (lost) { add(tube([[1.04, 0.04, 0.04, cx], [1.0, 0.036, 0.036, cx], [0.99, 0.004, 0.004, cx]], sg), flesh, CI.skin, ei); rigid(ei, G.cylL, boneC, CI.white, cx, 0.975, 0, 0.012, 0.07, 0.012); hL.scale.setScalar(s < 0 ? 0.001 : 1); if (s > 0) hR.scale.setScalar(0.001); continue; }
       const glv = o.gloves ? 0x2a2a2c : skin, gc = o.gloves ? CI.gear : CI.skin, hw = F ? 0.9 : 1, cyl = hi ? G.cyl : G.cylL, y0 = yWr;
+      const pc0 = pieces.length;
       rigid(hi2, G.sph, glv, gc, cx, y0 - 0.048, 0, 0.036 * hw, 0.046, 0.0145);
       for (let f = 0; f < 4; f++) { const fx = cx + (f - 1.5) * 0.0172 * hw, L1 = [0.032, 0.036, 0.034, 0.027][f], L2 = L1 * 0.9, cr = Z ? 0.55 : 0.32, r = [0.0082, 0.0086, 0.0082, 0.0074][f];
         rigid(hi2, cyl, glv, gc, fx, y0 - 0.088 - L1 / 2, -0.004, r, L1 + 0.006, r, cr * 0.4, 0, 0);
@@ -250,6 +251,7 @@ const HUMAN = (() => {
         if (hi) rigid(hi2, G.sphL, o.gloves ? skin : glv, CI.skin, fx, y0 - 0.088 - L1 - L2 * 0.92 * Math.cos(cr), -0.007 - L2 * 0.92 * Math.sin(cr), r * 0.9, r * 0.9, r * 0.9); }
       rigid(hi2, cyl, glv, gc, cx - s * 0.034 * hw, y0 - 0.045, -0.013, 0.0105, 0.05, 0.0105, -0.5, 0, s * 0.55);
       rigid(hi2, G.sphL, o.gloves ? skin : glv, CI.skin, cx - s * 0.047 * hw, y0 - 0.068, -0.027, 0.0098, 0.012, 0.0098);
+      for (let k = pc0; k < pieces.length; k++) { const g = pieces[k].geo; g.translate(-cx, -y0, 0); g.scale(HSCL, HSCL, HSCL); g.translate(cx, y0, 0); }
     }
     // ----- cuello y cabeza -----
     const nr = F ? 0.046 : 0.054;
@@ -271,8 +273,8 @@ const HUMAN = (() => {
     const noNose = Z && (zi === 3 || zi === 6);
     headSkin.push(headUV(sculpt(hi ? 30 : 18, hi ? 20 : 13, (dx, dy, dz) => HP(dx, dy, dz)), 0));
     if (!noNose) { const nz = frontZ(0, 0.132) + 0.006, nw = F ? 0.88 : 1;
-      headSkin.push(headUV(sculpt(hi ? 10 : 8, hi ? 8 : 6, (dx, dy, dz) => { const t = (1 - dy) / 2, w = mix(0.0062, 0.0142, sstep(0.2, 0.9, t)) * nw, dep = mix(0.005, 0.025, sstep(0.1, 0.85, t)) * (1 - 0.3 * sstep(0.85, 1, t)); return [dx * w, 0.133 + dy * 0.031, nz + Math.min(0, dz) * dep + Math.max(0, dz) * 0.004]; }), 1));
-      for (const s of [-1, 1]) headSkin.push(headUV(sculpt(6, 5, (dx, dy, dz) => [s * 0.0105 * nw + dx * 0.0075, 0.109 + dy * 0.0062, nz - 0.012 + dz * 0.0075]), 1)); }
+      headSkin.push(headUV(sculpt(hi ? 10 : 8, hi ? 8 : 6, (dx, dy, dz) => { const t = (1 - dy) / 2, w = mix(0.0066, 0.0152, sstep(0.2, 0.9, t)) * nw, dep = mix(0.005, 0.022, sstep(0.1, 0.85, t)) * (1 - 0.3 * sstep(0.85, 1, t)); return [dx * w, 0.133 + dy * 0.031, nz + Math.min(0, dz) * dep + Math.max(0, dz) * 0.004]; }), 1));
+ }
     for (const s of [-1, 1]) if (!(Z && rnd() < 0.15)) headSkin.push(headUV(sculpt(6, 6, (dx, dy, dz) => [s * (hrx * 0.97) + dx * 0.008 + s * Math.max(0, dz) * 0.006, 0.13 + dy * 0.025 + Math.max(0, dy) * 0.004, 0.014 + dz * 0.016]), 2));
     // ----- pelo -----
     const stRaw = Z ? pk(['short', 'messy', 'long', 'bald', 'side', 'buzz', 'short']) : (o.style || 'short'), st = ['buzz', 'short', 'side', 'messy', 'long', 'ponytail', 'bun', 'curly', 'afro', 'mohawk', 'bald'].includes(stRaw) ? stRaw : 'short';
@@ -293,7 +295,7 @@ const HUMAN = (() => {
       if (st === 'bun') H(G.sph, hair, CI.hair, 0, 0.222, 0.078, 0.046, 0.042, 0.046);
       if (st === 'mohawk') add(up(sculpt(8, 8, (dx, dy, dz) => [dx * 0.013, 0.215 + dy * 0.05 - Math.abs(dz) * 0.03, 0.012 + dz * 0.105])), hair, CI.hair, 2);
     }
-    if (!Z && o.beard === 'full') shell((dx, dy) => 0.008 + 0.016 * sstep(-0.5, -0.95, dy), mixHex(hair, 0x140a06, 0.1), (dx, dy, dz) => (dz < 0.25 && dy < -0.2 && !(Math.abs(dx) < 0.3 && dy > -0.5 && dz < 0)) ? dy - 1 : 9, CI.hair, 0.3);
+    if (!Z && o.beard === 'full') shell((dx, dy) => 0.004 + 0.008 * sstep(-0.5, -0.95, dy), mixHex(mixHex(hair, 0x140a06, 0.1), skin, 0.12), (dx, dy, dz) => (dz < 0.25 && dy < -0.3 && !(Math.abs(dx) < 0.3 && dy > -0.5 && dz < 0)) ? dy - 1 : 9, CI.hair, 0.3);
     // ----- gorros y gafas -----
     if (hat) { const hc2 = hex(o.hatc || 0x3a4a2a);
       if (hat === 'cap') { shell(() => 0.024, hc2, (dx, dy, dz) => dz < 0 ? 0.36 : 0.22, CI.gear, 0.06); add(up(sculpt(10, 6, (dx, dy, dz) => [dx * 0.078, 0.2 + dy * 0.006 - Math.max(0, -dz) * 0.012, frontZ(0, 0.2) - 0.045 + dz * 0.07])), hc2, CI.gear, 2); H(G.sphL, shade(hc2, -0.2), CI.gear, 0, 0.268, 0.01, 0.012, 0.006, 0.012); }

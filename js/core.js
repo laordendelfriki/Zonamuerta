@@ -1,8 +1,8 @@
 // ===== LA ORDEN: ÚLTIMO EN PIE — núcleo: utilidades, mundo, colisiones =====
 'use strict';
 const CITYMODE = window.MAP_MODE === 'city';
-const WORLD = CITYMODE ? 1500 : 640, HALF = WORLD / 2, GRID = CITYMODE ? 150 : 160, CELL = WORLD / GRID;
-const SQPOI = t => t === 'city' || t === 'town' || t === 'camp';
+const WORLD = CITYMODE ? 2000 : 640, HALF = WORLD / 2, GRID = CITYMODE ? 200 : 160, CELL = WORLD / GRID;
+const SQPOI = t => t === 'city' || t === 'town' || t === 'camp' || t === 'gang';
 const IS_TOUCH = ('ontouchstart' in window) || matchMedia('(pointer:coarse)').matches;
 // Gestión de color: todos los colores que escribimos están en sRGB y se pasan a lineal para un render realista
 { let depth = 0; for (const k of ['setHex', 'setRGB', 'setHSL', 'setStyle']) { const o = THREE.Color.prototype[k]; THREE.Color.prototype[k] = function () { depth++; try { o.apply(this, arguments); } finally { depth--; } if (depth === 0) this.convertSRGBToLinear(); return this; }; } }
@@ -54,8 +54,15 @@ if (CITYMODE) {
     { name: 'Montcada i Reixac', x: -132, z: -480, r: 110, type: 'town', sp: 55, n: 2 },
     { name: 'Santa Perpètua', x: 440, z: -253, r: 110, type: 'town', sp: 55, n: 2, ind: true },
     { name: 'Mollet del Vallès', x: 470, z: 121, r: 130, type: 'town', sp: 55, n: 2 },
-    { name: 'Campamento', x: -330, z: 42, r: 30, type: 'camp' }];
-  ROADS = [[0, 163, 0, 377], [-229, 0, -427, 0], [-132, -229, -132, -372], [163, -198, 332, -198], [163, 66, 342, 66]];
+    { name: 'Ripollet', x: -770, z: 0, r: 90, type: 'town', sp: 55, n: 1 },
+    { name: 'Parets del Vallès', x: 470, z: 610, r: 100, type: 'town', sp: 55, n: 1 },
+    { name: 'Campamento', x: -330, z: 42, r: 30, type: 'camp' },
+    { name: 'Los Buitres', x: -610, z: -480, r: 26, type: 'gang', gang: 'buitres', gd: [1, 0] },
+    { name: 'La Guardia', x: 440, z: -650, r: 26, type: 'gang', gang: 'guardia', gd: [0, 1] },
+    { name: 'La Germandat', x: -520, z: 530, r: 26, type: 'gang', gang: 'germandat', gd: [0, -1] },
+    { name: 'Mercaders del Besòs', x: 770, z: 121, r: 26, type: 'gang', gang: 'mercaders', gd: [-1, 0] }];
+  ROADS = [[0, 163, 0, 377], [-229, 0, -427, 0], [-132, -229, -132, -372], [163, -198, 332, -198], [163, 66, 342, 66],
+    [-615, 0, -680, 0], [470, 251, 470, 510], [-242, -480, -584, -480], [440, -363, 440, -624], [-520, 95, -520, 504], [600, 121, 744, 121]];
 }
 for (const p of POIS) p.h = Math.max(4.5, baseH(p.x, p.z));
 function rawH(x, z) {
@@ -322,7 +329,7 @@ function terrainColor(x, z, h, out) {
 const MINIMAP_IMG = document.createElement('canvas');
 {
   const W = GRID + 1, pos = new Float32Array(W * W * 3), col = new Float32Array(W * W * 3), idx = [];
-  const MS = CITYMODE ? 512 : 256; MINIMAP_IMG.width = MINIMAP_IMG.height = MS;
+  const MS = CITYMODE ? 768 : 256; MINIMAP_IMG.width = MINIMAP_IMG.height = MS;
   const mctx = MINIMAP_IMG.getContext('2d'), img = mctx.createImageData(MS, MS);
   const tmp = [0, 0, 0];
   for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) {
@@ -372,7 +379,7 @@ function nearPath(x, z) { for (const r of ROADS) if (distSeg(x, z, r[0], r[1], r
 {
   const trees = [], pines = [];
   let tries = 0;
-  while (trees.length + pines.length < (CITYMODE ? 850 : 520) && tries++ < 40000) {
+  while (trees.length + pines.length < (CITYMODE ? 1250 : 520) && tries++ < 40000) {
     let x = R(-HALF, HALF), z = R(-HALF, HALF);
     const forest = POIS[6];
     if (forest && forest.type === 'forest' && rand() < 0.3) { x = forest.x + R(-70, 70); z = forest.z + R(-45, 45); }
