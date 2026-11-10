@@ -554,7 +554,7 @@ function interact() {
   openCont(c);
 }
 function openCont(c) { if (document.pointerLockElement) document.exitPointerLock(); S.open = c; S.invOpen = true; c.searched = true; S.dirty = true; sfx('open', 0.6); emitNoise(S.p.pos, 3); renderInv(); }
-function closeInv() { const was = S.invOpen; S.open = null; S.invOpen = false; $('inv').classList.add('hidden'); if (was && S.phase === 'game' && S.view === 'fp') { mouseL = false; updateLock(); } }
+function closeInv() { const was = S.invOpen; S.open = null; S.invOpen = false; $('inv').classList.add('hidden'); if (was && S.phase === 'game' && S.view === 'fp') { mouseL = false; relock(); updateLock(); } }
 function toggleInv() { if (S.invOpen) closeInv(); else { if (document.pointerLockElement) document.exitPointerLock(); S.invOpen = true; S.open = null; S.dirty = true; renderInv(); } }
 function itemRow(it, btns) {
   const d = ITEMS[it.id]; let sub = [];
@@ -651,8 +651,13 @@ function updateDayNight(focus) {
   if (typeof CITY !== 'undefined' && CITY.lamps) CITY.lamps.material.color.setScalar(dl < 0.4 ? 2.2 : 0.55);
   flashlight.visible = dl < 0.3 && S.p && S.p.alive;
   if (flashlight.visible && S.p) { const p = S.p; flashlight.intensity = 2.6 * (1 - dl / 0.3); if (S.view === 'fp') { flashlight.position.copy(camera.position).add(new V3(0.25, -0.25, 0).applyQuaternion(camera.quaternion)); flashlight.target.position.copy(camera.position).add(new V3(0, 0, -10).applyQuaternion(camera.quaternion)); } else { flashlight.position.set(p.pos.x, p.pos.y + 1.5, p.pos.z); flashlight.target.position.set(p.pos.x - Math.sin(p.yaw) * 8, p.pos.y, p.pos.z - Math.cos(p.yaw) * 8); } pLight.intensity = 0.5 * (1 - dl / 0.3); pLight.position.set(p.pos.x, p.pos.y + 2.5, p.pos.z); } else pLight.intensity = 0;
-  sun.target.position.set(focus.x, focus.y, focus.z); sun.position.copy(sun.target.position).add(SUN_OFF);
+  // la sombra se mueve a saltos de un téxel: así no tiembla al caminar
+  { const L = _sl.copy(SUN_OFF).normalize(), rt = _sr.set(0, 1, 0).cross(L).normalize(), up = _su.copy(L).cross(rt), tx = 110 / sun.shadow.mapSize.x; _sf.set(focus.x, focus.y, focus.z);
+    const fr = Math.round(_sf.dot(rt) / tx) * tx, fu = Math.round(_sf.dot(up) / tx) * tx, fl = _sf.dot(L);
+    sun.target.position.set(rt.x * fr + up.x * fu + L.x * fl, rt.y * fr + up.y * fu + L.y * fl, rt.z * fr + up.z * fu + L.z * fl); }
+  sun.position.copy(sun.target.position).add(SUN_OFF);
 }
+const _sl = new V3(), _sr = new V3(), _su = new V3(), _sf = new V3();
 
 // ---------- entrada ----------
 const keys = {}; let mouseL = false, mouseNDC = new THREE.Vector2(0, 0), mouseSeen = false;
@@ -662,7 +667,8 @@ addEventListener('keydown', e => {
   if (S.phase !== 'game') return;
   if (e.code === 'KeyE' || e.code === 'KeyF') interact();
   if (e.code === 'Tab' || e.code === 'KeyI') { e.preventDefault(); toggleInv(); }
-  if (e.code === 'Escape') { if (S.mapOpen) closeMap(); closeInv(); stopPlacing(); closeBuildMenu(); if (S.talkOpen) closeTalk(); }
+  if (e.code === 'Escape' || e.code === 'KeyP') { if (S.pauseOpen || isPaused()) { if (e.code === 'KeyP') closePause(); } else if (panelOpen() || S.placing) { if (S.mapOpen) closeMap(); closeInv(); stopPlacing(); closeBuildMenu(); if (S.talkOpen) closeTalk(); relock(); } else openPause(); return; }
+  if (isPaused()) return;
   if (e.code === 'KeyR') { if (S.placing) rotatePlacing(); else startReload(); }
   if (e.code === 'KeyB') { if (S.placing) stopPlacing(); else if (S.buildOpen) closeBuildMenu(); else openBuildMenu(); }
   if (e.code === 'KeyX') dismantleLooked();
@@ -676,11 +682,22 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 const cvs = renderer.domElement;
 let locked = false;
-function requestLock() { if (IS_TOUCH || S.noLock) return; try { const r = cvs.requestPointerLock(); if (r && r.catch) r.catch(() => { S.noLock = true; updateLock(); }); } catch (e) { S.noLock = true; } }
-function updateLock() { $('lock').classList.toggle('hidden', !(S.phase === 'game' && S.view === 'fp' && !IS_TOUCH && !locked && !S.noLock && !S.invOpen && !S.buildOpen && !S.talkOpen && !S.mapOpen && S.p && S.p.alive && $('confirm').classList.contains('hidden'))); }
-document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cvs; updateLock(); });
+let everLocked = false;
+function requestLock() { if (IS_TOUCH || S.noLock) return; try { const r = cvs.requestPointerLock(); if (r && r.catch) r.catch(() => { if (!everLocked) S.noLock = true; updateLock(); }); } catch (e) { if (!everLocked) S.noLock = true; } }
+const panelOpen = () => S.invOpen || S.buildOpen || S.talkOpen || S.mapOpen;
+function relock() { if (S.phase === 'game' && S.view === 'fp' && !IS_TOUCH && !S.noLock && !locked && !panelOpen() && !S.pauseOpen && S.p && S.p.alive) requestLock(); }
+function openPause() { if (S.phase !== 'game' || !S.p || !S.p.alive) return; S.pauseOpen = true; mouseL = false; if (document.pointerLockElement) document.exitPointerLock(); $('psaved').textContent = ''; updateLock(); }
+function closePause() { S.pauseOpen = false; relock(); updateLock(); }
+const isPaused = () => S.phase === 'game' && !$('lock').classList.contains('hidden');
+function updateLock() { if (S.phase !== 'game') S.pauseOpen = false; $('lock').classList.toggle('hidden', !(S.phase === 'game' && S.p && S.p.alive && (S.pauseOpen || (S.view === 'fp' && !IS_TOUCH && !locked && !S.noLock && !panelOpen())))); }
+document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cvs; if (locked) { everLocked = true; S.pauseOpen = false; } updateLock(); });
 document.addEventListener('pointerlockerror', () => { S.noLock = true; updateLock(); });
-$('lock').addEventListener('click', () => { initAudio(); requestLock(); });
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!(document.fullscreenElement || document.webkitFullscreenElement) && S.phase === 'game' && !S.pauseOpen && !panelOpen()) openPause(); });
+addEventListener('blur', () => { if (S.phase === 'game' && !S.pauseOpen && !panelOpen()) openPause(); });
+$('pcont').onclick = () => { initAudio(); closePause(); };
+$('psave').onclick = () => { saveGame(); $('psaved').textContent = '✔ Partida guardada'; };
+$('pexit').onclick = () => { S.pauseOpen = false; try { toMenu(); } catch (e) { console.error(e); S.phase = 'menu'; $('menu').classList.remove('hidden'); $('hud').classList.add('hidden'); $('touch').classList.add('hidden'); updateLock(); } };
+$('pfs').onclick = () => toggleFS();
 cvs.addEventListener('mousedown', e => { initAudio(); if (S.phase !== 'game') return; if (S.mapOpen) return; if (S.view === 'fp' && !locked && !S.noLock && !S.invOpen) { requestLock(); return; } if (e.button === 0) { mouseL = true; if (S.invOpen && !S.open) closeInv(); } });
 function lookDelta(dx, dy, s) { S.yaw -= dx * s; S.pitch = clamp(S.pitch - dy * s, -1.4, 1.4); }
 addEventListener('mouseup', e => { if (e.button === 0) mouseL = false; });
@@ -712,7 +729,7 @@ if (IS_TOUCH) {
 // ---------- mapa grande ----------
 S.mv = { cx: 0, cz: 0, span: 360 };
 function openMap() { if (S.phase !== 'game') return; if (document.pointerLockElement) document.exitPointerLock(); S.mapOpen = true; const p = S.p; S.mv.cx = p.pos.x; S.mv.cz = p.pos.z; S.mv.span = S.mv.span || 360; $('mapov').classList.remove('hidden'); mouseL = false; touch.atk = false; updateLock(); sfx('open', 0.4); }
-function closeMap() { S.mapOpen = false; $('mapov').classList.add('hidden'); updateLock(); }
+function closeMap() { const was = S.mapOpen; S.mapOpen = false; $('mapov').classList.add('hidden'); if (was) relock(); updateLock(); }
 function toggleMap() { if (S.mapOpen) closeMap(); else openMap(); }
 function cycleMap() { toggleMap(); }
 $('mm').addEventListener('click', openMap);
@@ -1162,7 +1179,7 @@ function openBuildMenu() {
     `<div class="it"><span class="ic">⬆️</span><span class="nm">Mejorar lo que miro<small>Pared → reforzada · Puerta → reforzada · Barricada → pinchos (junto al banco)</small></span><button class="ib" data-b="__up">Mejorar</button></div><div class="it"><span class="ic">🪓</span><span class="nm">Desmontar lo que miro<small>Recuperas la mitad de los materiales</small></span><button class="ib x" data-b="__dis">Desmontar</button></div>`;
   $('build').classList.remove('hidden'); updateLock();
 }
-function closeBuildMenu() { S.buildOpen = false; $('build').classList.add('hidden'); updateLock(); }
+function closeBuildMenu() { const was = S.buildOpen; S.buildOpen = false; $('build').classList.add('hidden'); if (was) relock(); updateLock(); }
 $('build').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.id === 'buildx') { closeBuildMenu(); return; } const k = b.dataset.b; if (k === '__dis') dismantleLooked(); else if (k === '__up') upgradeLooked(); else if (k) startPlacing(k); });
 $('bok').onclick = () => confirmPlace(); $('brot').onclick = () => rotatePlacing(); $('bcan').onclick = () => stopPlacing();
 $('bbuild').onclick = () => { if (S.buildOpen) closeBuildMenu(); else openBuildMenu(); };
@@ -1460,7 +1477,8 @@ function startGame(sv) {
   if (S.view === 'fp' && !IS_TOUCH) requestLock();
 }
 function toMenu() {
-  if (S.drive) exitCarForce(); saveGame(); engineSound(false);
+  if (S.turret && typeof leaveTurret === 'function') leaveTurret(); if (S.mapOpen) closeMap(); if (S.talkOpen) closeTalk();
+  try { if (S.drive) exitCarForce(); } catch (e) { S.drive = null; } try { saveGame(); } catch (e) { console.error(e); } engineSound(false);
   if (document.pointerLockElement) document.exitPointerLock();
   clearWorld(); closeInv(); S.phase = 'menu'; S.p = null; VM.visible = false; updateLock();
   $('menu').classList.remove('hidden'); $('end').classList.add('hidden'); $('hud').classList.add('hidden'); $('touch').classList.add('hidden');
@@ -1468,7 +1486,7 @@ function toMenu() {
   renderer.toneMappingExposure = 1; envMats = null; setEnv(1); envCur = -1; for (const k of ['top', 'mid', 'bot']) SKY[k].value.copy(DAYC[k]); scene.fog.color.copy(DAYC.bot); scene.fog.near = 140; scene.fog.far = 520; sun.intensity = 1.35; sun.color.setRGB(1, 0.94, 0.85); hemi.intensity = 0.25; flashlight.visible = false; pLight.intensity = 0;
 }
 $('again').onclick = toMenu;
-$('quit').onclick = () => { closeInv(); if (document.pointerLockElement) document.exitPointerLock(); $('confirm').classList.remove('hidden'); updateLock(); };
+$('quit').onclick = () => { closeInv(); if (S.talkOpen) closeTalk(); if (S.mapOpen) closeMap(); openPause(); };
 $('cno').onclick = () => { $('confirm').classList.add('hidden'); updateLock(); };
 $('cyes').onclick = () => { $('confirm').classList.add('hidden'); toMenu(); };
 function setView(v) { S.view = v; try { localStorage.setItem('zm_v', v === 'fp' ? 0 : 1); } catch (e) { } document.querySelectorAll('[data-v]').forEach(x => x.classList.toggle('sel', +x.dataset.v === (v === 'fp' ? 0 : 1))); if (S.phase === 'game') { if (v === 'fp') { S.yaw = S.p.yaw; S.pitch = -0.05; requestLock(); } else if (document.pointerLockElement) document.exitPointerLock(); } updateLock(); }
@@ -1514,9 +1532,9 @@ function setupPost() {
     if (rt.samples !== undefined) rt.samples = 4;
     const c = new THREE.EffectComposer(renderer, rt);
     c.addPass(new THREE.RenderPass(scene, camera));
-    c.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.3, 0.5, 0.88));
+    c.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.18, 0.35, 0.97));
     const gp = new THREE.ShaderPass({ uniforms: { tDiffuse: { value: null }, uTime: { value: 0 } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;\nvec3 toSRGB(vec3 c){ return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }\nvoid main(){ vec3 c = toSRGB(clamp(texture2D(tDiffuse, vUv).rgb, 0.0, 1.0)); float l = dot(c, vec3(0.299, 0.587, 0.114)); c = mix(vec3(l), c, 0.82); c = (c - 0.5) * 1.08 + 0.5; c *= mix(vec3(0.92, 1.0, 0.98), vec3(1.04, 1.0, 0.92), smoothstep(0.2, 0.8, l)); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.9; float n = fract(sin(dot(vUv * 913.7 + fract(uTime), vec2(12.9898, 78.233))) * 43758.5453); c += (n - 0.5) * 0.035; gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0); }' }); c.addPass(gp); S.gradePass = gp;
+      fragmentShader: 'uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;\nvec3 toSRGB(vec3 c){ return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }\nvoid main(){ vec3 c = toSRGB(clamp(texture2D(tDiffuse, vUv).rgb, 0.0, 1.0)); float l = dot(c, vec3(0.299, 0.587, 0.114)); c = mix(vec3(l), c, 0.82); c = (c - 0.5) * 1.08 + 0.5; c *= mix(vec3(0.92, 1.0, 0.98), vec3(1.04, 1.0, 0.92), smoothstep(0.2, 0.8, l)); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.9; float n = fract(sin(dot(vUv * 913.7 + fract(uTime), vec2(12.9898, 78.233))) * 43758.5453); c += (n - 0.5) * 0.0; gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0); }' }); c.addPass(gp); S.gradePass = gp;
     c.setPixelRatio(renderer.getPixelRatio()); c.setSize(innerWidth, innerHeight); composer = c; return true;
   } catch (e) { composer = null; return false; }
 }
@@ -1539,7 +1557,7 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now; S.time += dt;
   try {
-    if (S.phase === 'menu') updateLobby(dt); else if (S.phase === 'game') updateGame(dt);
+    if (S.phase === 'menu') updateLobby(dt); else if (S.phase === 'game' && !isPaused()) updateGame(dt);
     updateFx(dt); WATER_NORMAL.offset.set(S.time * 0.012, S.time * 0.007); clouds.position.x = (S.time * 2) % 400; if (S.gradePass) S.gradePass.uniforms.uTime.value = S.time; GRASS_TIME.value = S.time;
   } catch (e) { console.error(e); }
   scene.userData.sky.position.copy(camera.position);

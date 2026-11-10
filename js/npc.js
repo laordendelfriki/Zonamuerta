@@ -97,7 +97,7 @@ let talkN = null;
 function talk(n) {
   if (!n.alive) return; talkN = n; if (document.pointerLockElement) document.exitPointerLock(); S.talkOpen = true; updateLock(); renderTalk(); $('npcp').classList.remove('hidden');
 }
-function closeTalk() { S.talkOpen = false; talkN = null; $('npcp').classList.add('hidden'); $('trade').classList.add('hidden'); updateLock(); }
+function closeTalk() { const was = S.talkOpen; S.talkOpen = false; talkN = null; $('npcp').classList.add('hidden'); $('trade').classList.add('hidden'); if (was) relock(); updateLock(); }
 function questDone(n) {
   const q = n.def.quest, p = S.p;
   if (q.type === 'kill') return S.kills - n.qBase >= q.n;

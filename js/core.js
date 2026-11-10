@@ -91,7 +91,7 @@ function groundNormal(x, z) {
 }
 
 // ---------- three.js básico ----------
-const renderer = new THREE.WebGLRenderer({ antialias: !IS_TOUCH, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, IS_TOUCH ? 1.25 : 1.75));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
@@ -103,7 +103,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.getElementById('game').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xbfe3ff, 160, 720);
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 2500);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.15, 2500);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
 // cielo
