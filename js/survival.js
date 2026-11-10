@@ -650,18 +650,18 @@ function updateDayNight(focus) {
 
 // ---------- entrada ----------
 const keys = {}; let mouseL = false, mouseNDC = new THREE.Vector2(0, 0), mouseSeen = false;
-const touch = { jx: 0, jy: 0, atk: false, run: false };
+const touch = { jx: 0, jy: 0, atk: false, run: false, jump: false };
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return; if (e.repeat) return; keys[e.code] = true;
   if (S.phase !== 'game') return;
   if (e.code === 'KeyE' || e.code === 'KeyF') interact();
   if (e.code === 'Tab' || e.code === 'KeyI') { e.preventDefault(); toggleInv(); }
-  if (e.code === 'Escape') { closeInv(); stopPlacing(); closeBuildMenu(); if (S.talkOpen) closeTalk(); }
+  if (e.code === 'Escape') { if (S.mapOpen) closeMap(); closeInv(); stopPlacing(); closeBuildMenu(); if (S.talkOpen) closeTalk(); }
   if (e.code === 'KeyR') { if (S.placing) rotatePlacing(); else startReload(); }
   if (e.code === 'KeyB') { if (S.placing) stopPlacing(); else if (S.buildOpen) closeBuildMenu(); else openBuildMenu(); }
   if (e.code === 'KeyX') dismantleLooked();
   if (e.code === 'KeyC') openCraft();
-  if (e.code === 'KeyM') $('mm').click();
+  if (e.code === 'KeyM') toggleMap();
   if (e.code === 'KeyV') setView(S.view === 'fp' ? 'top' : 'fp');
   if (e.code === 'KeyQ') S.camYawT = (S.camYawT ?? S.camYaw) + Math.PI / 4;
   if (e.code === 'KeyZ') S.camYawT = (S.camYawT ?? S.camYaw) - Math.PI / 4;
@@ -671,11 +671,11 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 const cvs = renderer.domElement;
 let locked = false;
 function requestLock() { if (IS_TOUCH || S.noLock) return; try { const r = cvs.requestPointerLock(); if (r && r.catch) r.catch(() => { S.noLock = true; updateLock(); }); } catch (e) { S.noLock = true; } }
-function updateLock() { $('lock').classList.toggle('hidden', !(S.phase === 'game' && S.view === 'fp' && !IS_TOUCH && !locked && !S.noLock && !S.invOpen && !S.buildOpen && !S.talkOpen && S.p && S.p.alive && $('confirm').classList.contains('hidden'))); }
+function updateLock() { $('lock').classList.toggle('hidden', !(S.phase === 'game' && S.view === 'fp' && !IS_TOUCH && !locked && !S.noLock && !S.invOpen && !S.buildOpen && !S.talkOpen && !S.mapOpen && S.p && S.p.alive && $('confirm').classList.contains('hidden'))); }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cvs; updateLock(); });
 document.addEventListener('pointerlockerror', () => { S.noLock = true; updateLock(); });
 $('lock').addEventListener('click', () => { initAudio(); requestLock(); });
-cvs.addEventListener('mousedown', e => { initAudio(); if (S.phase !== 'game') return; if (S.view === 'fp' && !locked && !S.noLock && !S.invOpen) { requestLock(); return; } if (e.button === 0) { mouseL = true; if (S.invOpen && !S.open) closeInv(); } });
+cvs.addEventListener('mousedown', e => { initAudio(); if (S.phase !== 'game') return; if (S.mapOpen) return; if (S.view === 'fp' && !locked && !S.noLock && !S.invOpen) { requestLock(); return; } if (e.button === 0) { mouseL = true; if (S.invOpen && !S.open) closeInv(); } });
 function lookDelta(dx, dy, s) { S.yaw -= dx * s; S.pitch = clamp(S.pitch - dy * s, -1.4, 1.4); }
 addEventListener('mouseup', e => { if (e.button === 0) mouseL = false; });
 addEventListener('mousemove', e => { if (S.phase === 'game' && S.view === 'fp' && (locked || S.noLock) && !S.invOpen) lookDelta(e.movementX || 0, e.movementY || 0, 0.0022); mouseNDC.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); mouseSeen = true; const a = $('aim'); a.style.left = e.clientX + 'px'; a.style.top = e.clientY + 'px'; });
@@ -696,13 +696,69 @@ if (IS_TOUCH) {
   tap('tRot', () => { S.camYawT = (S.camYawT ?? S.camYaw) + Math.PI / 2; });
   tap('tUse', () => interact());
   tap('tView', () => setView(S.view === 'fp' ? 'top' : 'fp'));
+  tap('tJump', () => { touch.jump = true; setTimeout(() => touch.jump = false, 250); });
+  tap('tMap', () => openMap());
   const looks = new Map(), lz = $('lookz');
   lz.addEventListener('touchstart', e => { e.preventDefault(); for (const t of e.changedTouches) looks.set(t.identifier, [t.clientX, t.clientY, t.clientX, t.clientY, performance.now()]); }, { passive: false });
   lz.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) { const q = looks.get(t.identifier); if (!q) continue; if (S.view === 'fp') lookDelta(t.clientX - q[0], t.clientY - q[1], 0.006); else S.camYaw -= (t.clientX - q[0]) * 0.006, S.camYawT = S.camYaw; q[0] = t.clientX; q[1] = t.clientY; } }, { passive: false });
   const le = e => { for (const t of e.changedTouches) { const q = looks.get(t.identifier); if (q && e.type === 'touchend' && performance.now() - q[4] < 260 && Math.hypot(t.clientX - q[2], t.clientY - q[3]) < 14 && !$('prompt').classList.contains('hidden')) interact(); looks.delete(t.identifier); } }; lz.addEventListener('touchend', le); lz.addEventListener('touchcancel', le);
 }
-function cycleMap() { S.bigMap = ((S.bigMap | 0) + 1) % 3; $('mm').classList.toggle('big', !!S.bigMap); $('mm').width = $('mm').height = S.bigMap ? 640 : 300; if (S.bigMap) msg(S.bigMap === 1 ? 'Mapa de la zona (pulsa otra vez: comarca)' : 'Mapa de la comarca', 1.4); }
-$('mm').addEventListener('click', cycleMap);
+// ---------- mapa grande ----------
+S.mv = { cx: 0, cz: 0, span: 360 };
+function openMap() { if (S.phase !== 'game') return; if (document.pointerLockElement) document.exitPointerLock(); S.mapOpen = true; const p = S.p; S.mv.cx = p.pos.x; S.mv.cz = p.pos.z; S.mv.span = S.mv.span || 360; $('mapov').classList.remove('hidden'); mouseL = false; touch.atk = false; updateLock(); sfx('open', 0.4); }
+function closeMap() { S.mapOpen = false; $('mapov').classList.add('hidden'); updateLock(); }
+function toggleMap() { if (S.mapOpen) closeMap(); else openMap(); }
+function cycleMap() { toggleMap(); }
+$('mm').addEventListener('click', openMap);
+$('mapx').addEventListener('click', closeMap);
+$('mapov').addEventListener('click', e => { if (e.target.id === 'mapov') closeMap(); });
+{ const bm = $('bigmap'), zoomBy = f => { S.mv.span = clamp(S.mv.span * f, 70, WORLD * 1.05); };
+  $('mzIn').onclick = () => zoomBy(0.7); $('mzOut').onclick = () => zoomBy(1.4); $('mzMe').onclick = () => { S.mv.cx = S.p.pos.x; S.mv.cz = S.p.pos.z; S.mv.span = Math.min(S.mv.span, 360); };
+  $('mzAll').onclick = () => { S.mv.cx = 0; S.mv.cz = 0; S.mv.span = WORLD * 0.95; };
+  bm.addEventListener('wheel', e => { e.preventDefault(); zoomBy(e.deltaY > 0 ? 1.15 : 0.87); }, { passive: false });
+  const ptr = new Map(); let pinch0 = 0, span0 = 0;
+  bm.addEventListener('pointerdown', e => { bm.setPointerCapture(e.pointerId); ptr.set(e.pointerId, [e.clientX, e.clientY]); if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); span0 = S.mv.span; } });
+  bm.addEventListener('pointermove', e => { const o = ptr.get(e.pointerId); if (!o) return; if (ptr.size === 1) { const k = S.mv.span / bm.clientWidth; S.mv.cx -= (e.clientX - o[0]) * k; S.mv.cz -= (e.clientY - o[1]) * k; S.mv.cx = clamp(S.mv.cx, -HALF, HALF); S.mv.cz = clamp(S.mv.cz, -HALF, HALF); }
+    ptr.set(e.pointerId, [e.clientX, e.clientY]); if (ptr.size === 2 && pinch0) { const [a, b] = [...ptr.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); S.mv.span = clamp(span0 * pinch0 / Math.max(20, d), 70, WORLD * 1.05); } });
+  const up = e => { ptr.delete(e.pointerId); if (ptr.size < 2) pinch0 = 0; }; bm.addEventListener('pointerup', up); bm.addEventListener('pointercancel', up); }
+
+// ---------- guía de misión ----------
+const ITEM_SHOP = { beans: ['super', 'mercat'], water: ['super', 'bar'], medkit: ['farmacia', 'cap'], bandage: ['farmacia', 'cap'], alcohol: ['farmacia', 'bar'], scrap: ['taller', 'ferreteria'], tape: ['ferreteria', 'taller'], rope: ['ferreteria'], plank: ['ferreteria'], nails: ['ferreteria'], seeds: ['ferreteria', 'mercat'], booster: ['friki', 'quiosc'], gas: ['gasolinera', 'taller'], ammo: ['policia'] };
+function questTarget() {
+  if (!S.npcs || typeof questDone === 'undefined') return null;
+  if (S._qt && S.time - S._qtT < 0.4) return S._qt;
+  S._qtT = S.time; S._qt = null;
+  const n = S.npcs.find(n => n.def.id === S.track && n.quest === 1 && n.alive) || S.npcs.find(n => n.quest === 1 && n.alive);
+  if (!n) { const xv = S.npcs.find(n => n.def.id === 'xavi' && n.quest === 0 && n.alive); if (xv) return S._qt = { x: xv.pos.x, z: xv.pos.z, ic: '💬', title: 'Xavi', label: 'Habla con Xavi en La Orden del Friki' };
+    if (S.campKnown && S.camp && !S.campVisited) { if (Math.hypot(S.p.pos.x - S.camp.x, S.p.pos.z - S.camp.z) < 25) S.campVisited = true; else S._qt = { x: S.camp.x, z: S.camp.z, ic: '🚩', title: 'Campamento', label: 'Ve al campamento de Xavi' }; } return S._qt; }
+  const q = n.def.quest, p = S.p, base = { n, title: n.def.name, prog: questProgress(n) };
+  if (questDone(n)) return S._qt = { ...base, x: n.pos.x, z: n.pos.z, ic: '📜', label: 'Vuelve con ' + n.def.name + ' y entrega la misión' };
+  if (q.type === 'fetch') { const g = S.ground.find(g => g.it.id === 'qitem' && g.it.who === n.def.id); if (g) return S._qt = { ...base, x: g.pos.x, z: g.pos.z, ic: '⭐', label: 'Recupera el objeto marcado' }; return S._qt = { ...base, x: n.pos.x, z: n.pos.z, ic: '📜', label: 'Llévaselo a ' + n.def.name }; }
+  if (q.type === 'bring') { const miss = Object.keys(q.items).find(k => countItem(p, k) < q.items[k]); const kinds = (miss && ITEM_SHOP[miss]) || [];
+    let best = null, bd = 1e9; if (typeof CITY !== 'undefined') for (const r of CITY.rooms) { if (!r.name || !kinds.includes(r.kind)) continue; const x = (r.x0 + r.x1) / 2, z = (r.z0 + r.z1) / 2, d = Math.hypot(x - p.pos.x, z - p.pos.z); if (d < bd) { bd = d; best = { x, z, name: r.name }; } }
+    if (best) return S._qt = { ...base, x: best.x, z: best.z, ic: '🎯', label: `Busca ${ITEMS[miss].n.toLowerCase()} en ${best.name}` };
+    return S._qt = { ...base, x: null, label: 'Busca ' + (miss ? ITEMS[miss].n.toLowerCase() : 'lo que pide') + ' en casas y tiendas' }; }
+  return S._qt = { ...base, x: null, label: 'Mata zombis' };
+}
+function updateQuestHud() {
+  const t = questTarget(), el = $('qtrack');
+  if (!t) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+  const d = t.x != null ? Math.round(Math.hypot(t.x - S.p.pos.x, t.z - S.p.pos.z)) : null;
+  const h = `<b>📜 ${t.title}</b><br>${t.label}${d != null ? ` · <b>${d} m</b>` : ''}${t.prog ? `<div class="d">${t.prog}</div>` : ''}`;
+  if (el._h !== h) { el.innerHTML = h; el._h = h; } el.classList.remove('hidden');
+  if (S.mapOpen) { const mq = $('mapq'); const tx = '📜 ' + t.title + ': ' + t.label + (t.prog ? ' — ' + t.prog : ''); if (mq.textContent !== tx) mq.textContent = tx; }
+}
+function drawGuide(ctx, W, X, Z, big) {
+  const t = questTarget(); if (!t || t.x == null) return;
+  const p = S.p, px = X(p.pos.x), pz = Z(p.pos.z); let tx = X(t.x), tz = Z(t.z); const pul = 0.5 + 0.5 * Math.sin(S.time * 5), m = big ? 18 : 12;
+  const inside = tx > m && tx < W - m && tz > m && tz < W - m;
+  ctx.save(); ctx.setLineDash([6, 5]); ctx.lineDashOffset = -S.time * 20; ctx.strokeStyle = 'rgba(255,210,63,.85)'; ctx.lineWidth = big ? 3 : 2.2;
+  let ex = tx, ez = tz; if (!inside) { const dx = tx - px, dz = tz - pz, sc = Math.min(Math.abs((dx > 0 ? W - m - px : m - px) / (dx || 1e-6)), Math.abs((dz > 0 ? W - m - pz : m - pz) / (dz || 1e-6))); ex = px + dx * sc; ez = pz + dz * sc; }
+  ctx.beginPath(); ctx.moveTo(px, pz); ctx.lineTo(ex, ez); ctx.stroke(); ctx.setLineDash([]);
+  if (inside) { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(tx, tz, (big ? 10 : 7) + pul * 5, 0, 7); ctx.stroke(); ctx.font = (big ? 20 : 14) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(t.ic, tx, tz + (big ? 7 : 5)); }
+  else { const a = Math.atan2(tz - pz, tx - px); ctx.translate(ex, ez); ctx.rotate(a); const s = big ? 14 : 10; ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(-s * 0.7, s * 0.7); ctx.lineTo(-s * 0.3, 0); ctx.lineTo(-s * 0.7, -s * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  ctx.restore();
+}
 const _ray = new THREE.Raycaster();
 function mouseGround(y) { _ray.setFromCamera(mouseNDC, camera); const o = _ray.ray.origin, d = _ray.ray.direction; if (Math.abs(d.y) < 1e-4) return null; const t = (y - o.y) / d.y; return t > 0 ? o.clone().addScaledVector(d, t) : null; }
 
@@ -725,8 +781,12 @@ function updatePlayer(dt) {
   p.vel.x = lerp(p.vel.x, mx * spd, Math.min(1, dt * 10)); p.vel.z = lerp(p.vel.z, mz * spd, Math.min(1, dt * 10));
   p.pos.x += p.vel.x * dt; p.pos.z += p.vel.z * dt;
   p.pos.x = clamp(p.pos.x, -HALF + 4, HALF - 4); p.pos.z = clamp(p.pos.z, -HALF + 4, HALF - 4);
+  // salto
+  if ((keys.Space || touch.jump) && !(p.jy > 0) && !p.swim && !S.mapOpen && p.sta > 5) { p.vy = 4.7; p.jy = 0.001; p.sta -= 5; touch.jump = false; sfx('swish', 0.25); }
+  if (p.jy > 0) { p.vy -= 13 * dt; p.jy = Math.max(0, p.jy + p.vy * dt); if (p.jy === 0) { p.vy = 0; emitNoise(p.pos, 5); sfx('thud', 0.25); } }
+  p.pos.y = getH(p.pos.x, p.pos.z) + (p.jy || 0);
   collide(p.pos, 0.36, p.c.h);
-  const g = getH(p.pos.x, p.pos.z); p.swim = g < -0.95; p.pos.y = p.swim ? -1.1 : g;
+  const g = getH(p.pos.x, p.pos.z); p.swim = g < -0.95 && !(p.jy > 0.3); p.pos.y = p.swim ? -1.1 : g + (p.jy || 0);
   if (p.swim) { p.vel.multiplyScalar(0.92); }
   // orientación: ratón (PC) o movimiento / objetivo cercano (móvil)
   if (S.view === 'fp') { p.yaw = S.yaw; }
@@ -738,6 +798,7 @@ function updatePlayer(dt) {
   }
   if (S.placing) { if (mouseL && !IS_TOUCH && (S.view !== 'fp' || locked || S.noLock)) { mouseL = false; confirmPlace(); } }
   else if (S.drive) { }
+  else if (S.mapOpen) { }
   else if ((mouseL && !S.invOpen && !S.buildOpen && !S.talkOpen && (S.view !== 'fp' || locked || S.noLock || IS_TOUCH)) || touch.atk) attack();
   // resistencia y ruido al correr
   if (p.sprint) { p.sta = Math.max(0, p.sta - 5.5 * dt); p.stepT -= dt; if (p.stepT <= 0) { p.stepT = 0.5; emitNoise(p.pos, 8); } }
@@ -895,8 +956,11 @@ function updateHUD(dt) {
   // viñeta: oscura de noche, roja con poca vida
   const red = p.hp < 35 ? (35 - p.hp) / 35 : 0;
   $('vign').style.boxShadow = `inset 0 0 ${lerp(160, 260, 1 - dl)}px ${lerp(20, 90, 1 - dl)}px rgba(${Math.round(red * 160)},0,${Math.round((1 - dl) * 20)},${0.35 + (1 - dl) * 0.4 + red * 0.3})`;
-  drawMap($('mm').getContext('2d'), $('mm').width, S.bigMap === 2 ? 0 : p.pos.x, S.bigMap === 2 ? 0 : p.pos.z, S.bigMap === 2 ? WORLD * 0.9 : S.bigMap ? 420 : 120, !!S.bigMap);
+  drawMap($('mm').getContext('2d'), $('mm').width, p.pos.x, p.pos.z, 120, false);
+  if (S.mapOpen) drawMap($('bigmap').getContext('2d'), $('bigmap').width, S.mv.cx, S.mv.cz, S.mv.span, true);
+  updateQuestHud();
 }
+const SHOP_IC = { friki: '🃏', super: '🛒', mercat: '🛒', farmacia: '💊', cap: '🏥', ferreteria: '🔧', taller: '🔩', bar: '🍺', forn: '🥖', quiosc: '📰', policia: '🚓', ajuntament: '🏛️', gasolinera: '⛽' };
 function drawMap(ctx, W, cx, cz, span, big) {
   const k = W / span, X = x => (x - cx) * k + W / 2, Z = z => (z - cz) * k + W / 2;
   ctx.fillStyle = '#1f6f9a'; ctx.fillRect(0, 0, W, W); ctx.drawImage(MINIMAP_IMG, X(-HALF), Z(-HALF), WORLD * k, WORLD * k);
@@ -909,6 +973,8 @@ function drawMap(ctx, W, cx, cz, span, big) {
   if (S.camp && S.campKnown) { ctx.font = (big ? 18 : 13) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🚩', X(S.camp.x), Z(S.camp.z) + 5); }
   ctx.fillStyle = '#4ab0ff'; for (const c of S.cars) if (c.hp > 0) { const cx2 = X(c.pos.x), cz2 = Z(c.pos.z); if (cx2 > -5 && cx2 < W + 5 && cz2 > -5 && cz2 < W + 5) ctx.fillRect(cx2 - 2.5, cz2 - 2.5, 5, 5); }
   for (const z of S.zombies) if (z.alive && z.state === 'chase') { ctx.fillStyle = '#ff4a3a'; ctx.beginPath(); ctx.arc(X(z.pos.x), Z(z.pos.z), 3, 0, 7); ctx.fill(); }
+  if (big && typeof CITY !== 'undefined' && span < 700) { ctx.textAlign = 'center'; for (const r of CITY.rooms) { if (!r.name || !SHOP_IC[r.kind]) continue; const x2 = X((r.x0 + r.x1) / 2), z2 = Z((r.z0 + r.z1) / 2); if (x2 < -20 || x2 > W + 20 || z2 < -20 || z2 > W + 20) continue; ctx.font = '13px sans-serif'; ctx.fillText(SHOP_IC[r.kind] || '🏪', x2, z2 + 4); if (span < 420) { ctx.font = 'bold 10px Nunito, sans-serif'; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.lineWidth = 3; ctx.strokeText(r.name, x2, z2 + 17); ctx.fillStyle = '#bff0ff'; ctx.fillText(r.name, x2, z2 + 17); } } }
+  drawGuide(ctx, W, X, Z, big);
   const p = S.p; ctx.save(); ctx.translate(X(p.pos.x), Z(p.pos.z)); ctx.rotate(-p.yaw); ctx.fillStyle = '#9be36a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; const s = 9;
   ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.7, s * 0.7); ctx.lineTo(0, s * 0.3); ctx.lineTo(-s * 0.7, s * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
 }
@@ -1118,7 +1184,7 @@ function saveSoon() { saveT = Math.min(saveT, 1); }
 function saveGame() {
   const p = S.p; if (!p || !p.alive || S.phase !== 'game') return;
   try {
-    const d = { v: 1, clock: S.clock, kills: S.kills, lhd: S.lastHordeDay || 0, ck: !!S.campKnown, cards: S.cards || 0, zCount: S.zCount, cr: CR, p: { pos: p.pos.toArray(), yaw: p.yaw, hp: p.hp, food: p.food, water: p.water, sta: p.sta, bleed: p.bleed, inv: p.inv, eq: p.inv.indexOf(p.eq) },
+    const d = { v: 1, clock: S.clock, kills: S.kills, lhd: S.lastHordeDay || 0, ck: !!S.campKnown, cv: !!S.campVisited, cards: S.cards || 0, zCount: S.zCount, cr: CR, p: { pos: p.pos.toArray(), yaw: p.yaw, hp: p.hp, food: p.food, water: p.water, sta: p.sta, bleed: p.bleed, inv: p.inv, eq: p.inv.indexOf(p.eq) },
       conts: S.conts.map((c, i) => (!c.built && (c.searched || c.gone)) ? [i, c.items, c.gone ? 1 : 0] : null).filter(Boolean),
       ground: S.ground.map(g => [g.it, +g.pos.x.toFixed(2), +g.pos.y.toFixed(2), +g.pos.z.toFixed(2)]),
       built: S.built.filter(b => !b.city).map(b => [b.type, b.x, b.z, b.y, b.rot, Math.round(b.hp), b.open ? 1 : 0, b.cont ? b.cont.items : null]),
@@ -1334,7 +1400,7 @@ function startGame(sv) {
   for (const [x, z] of LOOT_SPOTS) if (rand() < 0.22) dropGround(rollItem('floor'), x, z);
   if (typeof CITY !== 'undefined') for (let i = 0; i < 40; i++) { const sp = pick(CITY.streetPts); dropGround(rollItem('floor'), sp[0] + R(-3, 3), sp[1] + R(-3, 3)); }
   if (sv) {
-    S.clock = sv.clock; S.kills = sv.kills; S.lastHordeDay = sv.lhd || 0; S.campKnown = !!sv.ck; S.smallHordeT = R(200, 320); S.cards = sv.cards || 0;
+    S.clock = sv.clock; S.kills = sv.kills; S.lastHordeDay = sv.lhd || 0; S.campKnown = !!sv.ck; S.campVisited = !!sv.cv; S.smallHordeT = R(200, 320); S.cards = sv.cards || 0;
     const P = sv.p, p = S.p; p.pos.fromArray(P.pos); p.yaw = P.yaw; S.yaw = P.yaw; p.hp = P.hp; p.food = P.food; p.water = P.water; p.sta = P.sta; p.bleed = P.bleed; p.inv = P.inv; p.eq = P.eq >= 0 ? p.inv[P.eq] : null;
     for (const [i, items, gone] of sv.conts) { const c = S.conts[i]; if (!c || c.built) continue; c.items = items; c.searched = true; if (gone) { c.gone = true; if (c.model) { c.model.visible = false; c.model.userData.gone = true; } removeBox(c.box); } }
     for (const g of S.ground.slice()) removeGround(g);
@@ -1350,7 +1416,7 @@ function startGame(sv) {
     kit[0].dur = MELEE.bat.dur; kit[1].mag = GUNS.pistol.mag; for (const it of kit) addItem(S.p, it); S.p.eq = S.p.inv[0];
     S.lastHordeDay = 0; S.smallHordeT = R(260, 360);
     spawnZombies(S.zCount); spawnCars();
-    S.campKnown = false;
+    S.campKnown = false; S.campVisited = false; S.track = null; S._qt = null; closeMap();
     if (typeof CITY !== 'undefined' && CITY.campSpot) { const c = CITY.campSpot, y = getH(c.x, c.z); addPiece('flag', c.x, c.z, 0, y); addPiece('campfire', c.x - 3, c.z - 5, 0, y); addPiece('bench', c.x + 7, c.z + 6, 0, y); addPiece('bed', c.x - 16, c.z - 2, 0, y); addPiece('bed', c.x - 13.5, c.z - 2, 0, y); addPiece('collector', c.x + 15, c.z - 9, 0, y); addPiece('garden', c.x - 4, c.z + 2.5, 0, y); for (const z of S.zombies) if (z.pos.x > c.X0 - 5 && z.pos.x < c.X1 + 5 && z.pos.z > c.Z0 - 5 && z.pos.z < c.Z1 + 5) z.pos.x += 40; }
     if (typeof spawnNPCs === 'function') spawnNPCs(null);
   }

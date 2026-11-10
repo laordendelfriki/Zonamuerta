@@ -60,6 +60,21 @@ button{font-family:inherit;color:inherit}
 #eqslot .dur i{display:block;height:100%;background:#9be36a}
 #binv{width:62px;height:62px;border-radius:14px;border:3px solid rgba(255,255,255,.5);background:rgba(0,0,0,.5);font-size:26px;cursor:pointer}
 #mm{position:absolute;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));width:150px;height:150px;border-radius:12px;border:3px solid rgba(255,255,255,.75);pointer-events:auto}
+#qtrack{position:absolute;top:calc(196px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));max-width:230px;background:rgba(10,14,12,.72);border:1px solid rgba(255,210,63,.55);border-left:4px solid #ffd23f;padding:5px 9px;border-radius:8px;font-size:12px;font-weight:800;line-height:1.3;pointer-events:none}
+#qtrack b{color:#ffd23f}#qtrack .d{opacity:.8;font-size:11px}
+#tMap{position:absolute;pointer-events:auto;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));width:150px;height:150px;border-radius:12px}
+#tJump{width:62px;height:62px;right:calc(42px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));font-size:26px;background:rgba(60,120,200,.4)}
+#mapov{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;pointer-events:auto}
+#mapov .mbox{background:rgba(18,22,20,.96);border:2px solid rgba(155,227,106,.45);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:6px;max-width:96vw;max-height:96vh}
+#mapov .mhd{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+#mapov .mhd span{display:flex;gap:5px;flex-wrap:wrap}
+#mapov .pb.off{background:#3a423c;color:#dfe}
+#bigmap{width:min(78vh,92vw,720px);height:min(78vh,92vw,720px);border-radius:10px;touch-action:none;cursor:grab;background:#1f6f9a}
+#mapov .side{max-width:min(78vh,92vw,720px)}
+#mleg{font-size:11px;font-weight:800;opacity:.9;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+#mapq{font-size:12px;font-weight:800;color:#ffd23f;text-align:center}
+
+@media (orientation:landscape) and (max-height:560px){#bigmap{width:min(82vh,60vw);height:min(82vh,60vw)}#mapov .mbox{flex-direction:row}#mapov .side{display:flex;flex-direction:column;gap:6px;width:min(230px,34vw);overflow-y:auto}#mleg{flex-direction:column;gap:3px;align-items:flex-start}}
 #mm.big{width:min(86vmin,520px);height:min(86vmin,520px);top:50%;right:50%;transform:translate(50%,-50%);z-index:13}
 #zn{position:absolute;top:calc(166px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));background:rgba(0,0,0,.5);padding:3px 10px;border-radius:8px;font-weight:900;font-size:13px}
 #prompt{position:absolute;left:50%;top:64%;transform:translateX(-50%);background:rgba(0,0,0,.65);padding:6px 14px;border-radius:9px;font-weight:900;font-size:15px;white-space:nowrap;pointer-events:auto;cursor:pointer}
@@ -145,7 +160,7 @@ body.touch #eqslot .ic{display:none}
 body.touch #stats{width:min(210px,38vw);padding:6px 8px}
 body.touch .st{font-size:11px;margin:2px 0}
 body.touch .help.pc{display:none}
-@media (max-height:520px){.mcol{overflow-y:auto;touch-action:pan-y}.creator{flex:none;overflow:visible}#menu h1{font-size:28px}.row{margin-bottom:6px}.c{width:24px;height:24px}body.touch #mm{width:110px;height:110px}body.touch #mm.big{width:min(86vmin,520px);height:min(86vmin,520px);top:50%;right:50%;transform:translate(50%,-50%);z-index:13}
+@media (max-height:520px){.mcol{overflow-y:auto;touch-action:pan-y}.creator{flex:none;overflow:visible}#menu h1{font-size:28px}.row{margin-bottom:6px}.c{width:24px;height:24px}body.touch #mm{width:110px;height:110px}body.touch #tMap{width:110px;height:110px}body.touch #qtrack{top:calc(10px + env(safe-area-inset-top));right:calc(128px + env(safe-area-inset-right));max-width:210px;font-size:11px;padding:4px 8px}body.touch #mm.big{width:min(86vmin,520px);height:min(86vmin,520px);top:50%;right:50%;transform:translate(50%,-50%);z-index:13}
 #zn{top:calc(124px + env(safe-area-inset-top))}#eqslot{width:120px}}
 </style>
 </head>
@@ -163,6 +178,7 @@ body.touch .help.pc{display:none}
   <button id="quit">✕ Salir</button><button id="fsb" title="Pantalla completa">⛶</button>
   <canvas id="mm" width="300" height="300"></canvas>
   <div id="zn">🧟 0</div>
+  <div id="qtrack" class="hidden"></div>
   <div id="msg"></div>
   <div id="prompt" class="hidden"></div>
   <div id="stats">
@@ -193,7 +209,15 @@ body.touch .help.pc{display:none}
   <div class="tb" id="tRel">↻</div>
   <div class="tb" id="tRot">🔄</div>
   <div class="tb" id="tView">👁️</div>
+  <div class="tb" id="tJump">⤒</div>
+  <div id="tMap"></div>
 </div>
+<div id="mapov" class="hidden"><div class="mbox"><canvas id="bigmap" width="760" height="760"></canvas><div class="side">
+  <div class="mhd"><b>🗺️ Mapa</b><span><button class="pb" id="mzIn">＋</button><button class="pb" id="mzOut">－</button><button class="pb" id="mzMe">📍 Yo</button><button class="pb" id="mzAll">🌍 Comarca</button><button class="pb x" id="mapx">✕ Cerrar</button></span></div>
+  <div id="mapq"></div>
+  <div id="mleg"><span>🟢 Tú</span><span>⚪ Superviviente</span><span>🟡 Tiene misión</span><span>💚 Tu grupo</span><span>🚩 Campamento</span><span>⭐ Objeto de misión</span><span>🟦 Coche</span><span>🏪 Tienda</span><span>🎯 Objetivo</span><span>🔴 Zombi te persigue</span></div>
+  <div style="font-size:10px;opacity:.6;text-align:center">Arrastra para mover · rueda/＋－ para zoom · M para cerrar</div>
+</div></div></div>
 
 <div id="menu">
   <button id="fsm">⛶ Pantalla completa</button>
@@ -203,7 +227,7 @@ body.touch .help.pc{display:none}
     <div class="creator" id="creator"></div>
     <div class="mrow"><input id="pname" maxlength="16" placeholder="Nombre del superviviente"><button id="rnd" title="Aleatorio">🎲</button></div>
     <div class="mrow"><span class="help" style="font-weight:900">CÁMARA</span><div class="t" data-v="0">1ª persona</div><div class="t" data-v="1">Desde arriba</div><span class="help" style="font-weight:900;margin-left:6px">GRÁFICOS</span><div class="t" data-q="0">Rápido</div><div class="t" data-q="1">Bonito</div><div class="t" data-q="2">Ultra</div></div>
-    <div class="mrow"><div class="help pc">WASD mover · Ratón mirar · Clic atacar · Shift correr · E buscar/recoger/beber · Tab inventario · C crear objetos · M mapa · B construir · E subir/bajar del coche (Espacio frena) · E hablar con supervivientes · X desmontar · R recargar/girar · V cambiar cámara (1ª persona / desde arriba)</div><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><button id="cont" class="hidden"></button><button id="play">SOBREVIVIR</button></div></div>
+    <div class="mrow"><div class="help pc">WASD mover · Ratón mirar · Clic atacar · Shift correr · Espacio saltar · E buscar/recoger/beber · Tab inventario · C crear objetos · M mapa · B construir · E subir/bajar del coche (Espacio frena) · E hablar con supervivientes · X desmontar · R recargar/girar · V cambiar cámara (1ª persona / desde arriba)</div><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><button id="cont" class="hidden"></button><button id="play">SOBREVIVIR</button></div></div>
   </div>
 </div>
 

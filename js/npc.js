@@ -111,7 +111,7 @@ function renderTalk() {
 function talkAction(a) {
   const n = talkN, p = S.p; if (!n) return; const q = n.def.quest;
   if (a === 'bye') { closeTalk(); return; }
-  if (a === 'accept') { n.quest = 1; n.qBase = S.kills; if (q.type === 'fetch') placeQuestItem(n); msg('📜 Misión aceptada: ' + n.def.name, 1.8); sfx('pick', 0.8); }
+  if (a === 'accept') { n.quest = 1; n.qBase = S.kills; S.track = n.def.id; S._qt = null; if (q.type === 'fetch') placeQuestItem(n); msg('📜 Misión aceptada: ' + n.def.name + ' — sigue la guía amarilla del minimapa', 2.6); sfx('pick', 0.8); }
   if (a === 'turnin' && questDone(n)) {
     if (q.type === 'bring') for (const [k, v] of Object.entries(q.items)) takeItems(p, k, v);
     if (q.type === 'fetch') { const it = p.inv.find(i => i.id === 'qitem' && i.who === n.def.id); p.inv.splice(p.inv.indexOf(it), 1); if (n.def.id === 'mario') n.gotGun = true; }
