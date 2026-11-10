@@ -182,7 +182,7 @@ const HUMAN = (() => {
 
   // o: { sex, body, height, age, skin, hair, style, beard, eye, glasses, hat, hatc, outfit, top, pants, shoes, backpack, gloves, zombie, seed }
   function build(o) {
-    const rnd = mulberry32(o.seed || 1), pk = a => a[Math.floor(rnd() * a.length)], Z = !!o.zombie, F = o.sex === 'f', hi = !Z;
+    const rnd = mulberry32(o.seed || 1), pk = a => a[Math.floor(rnd() * a.length)], Z = !!o.zombie, F = o.sex === 'f', hi = !Z && !o.lod;
     const bt = o.body || 'normal', BW = { thin: 0.9, normal: 1, strong: 1.07, heavy: 1.14 }[bt] || 1, SH = (F ? 0.9 : 1) * (bt === 'strong' ? 1.09 : bt === 'thin' ? 0.95 : bt === 'heavy' ? 1.04 : 1), BELLY = bt === 'heavy' ? 1.26 : bt === 'thin' ? 0.92 : 1, LIMB = bt === 'strong' ? 1.14 : bt === 'heavy' ? 1.12 : bt === 'thin' ? 0.88 : 1;
     const age = o.age || 0; let zi = 0, skin = hex(o.skin);
     if (Z) { let bd = 1e9; ZT.forEach((t, i) => { const d = Math.abs((t >> 16 & 255) - (skin >> 16 & 255)) + Math.abs((t >> 8 & 255) - (skin >> 8 & 255)) + Math.abs((t & 255) - (skin & 255)); if (d < bd) { bd = d; zi = i; } }); if (o.seed) zi = Math.floor(rnd() * 8); skin = ZT[zi]; }
@@ -323,7 +323,7 @@ const HUMAN = (() => {
       let m = 0; for (const g of headSkin) m += g.attributes.position.count; const hp = new Float32Array(m * 3), hn = new Float32Array(m * 3), hu = new Float32Array(m * 2); let o2 = 0;
       for (const g of headSkin) { hp.set(g.attributes.position.array, o2 * 3); hn.set(g.attributes.normal.array, o2 * 3); hu.set(g.attributes.uv.array, o2 * 2); o2 += g.attributes.position.count; }
       const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.BufferAttribute(hp, 3)); hg.setAttribute('normal', new THREE.BufferAttribute(hn, 3)); hg.setAttribute('uv', new THREE.BufferAttribute(hu, 2));
-      const cv = document.createElement('canvas'); cv.width = cv.height = 512; paintFace(cv.getContext('2d'), 512, 0, { skin, eye: hex(o.eye || 0x3a2a1a), brow: hair, sex: o.sex, age, beard: F ? 'none' : (o.beard || 'none'), seed: (o.seed || 1) + 3 });
+      const cv = document.createElement('canvas'); const FS = o.lod ? 256 : 512; cv.width = cv.height = FS; paintFace(cv.getContext('2d'), FS, 0, { skin, eye: hex(o.eye || 0x3a2a1a), brow: hair, sex: o.sex, age, beard: F ? 'none' : (o.beard || 'none'), seed: (o.seed || 1) + 3 });
       faceTex = new THREE.CanvasTexture(cv); faceTex.encoding = THREE.sRGBEncoding; faceTex.anisotropy = 4;
       const hm = new THREE.Mesh(hg, new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.72, metalness: 0, envMapIntensity: 0.4 })); hm.castShadow = true; head.add(hm); meshes.push(hm);
     }

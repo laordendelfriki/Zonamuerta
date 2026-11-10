@@ -33,6 +33,21 @@ const NPC_DEFS = [
     quest: { type: 'fetch', text: 'Mi pistola se me cayó en la huida. Está en tu mapa con una ⭐. Si me la traes, voy contigo.' }, hello: 'El más rápido del gatillo… sin pistola, eso sí.' },
 ];
 const SKILL_TXT = { medic: '🩹 Cura al grupo y prepara vendas', trader: '🪙 Comercia en el campamento', mechanic: '🔧 Repara y llena de gasolina los coches del campamento', fighter: '🔫 Defiende el campamento', builder: '🔨 Repara las defensas de la base', farmer: '🥬 El huerto da el doble', cook: '🍲 Cocina estofados', scavenger: '🎒 Sale a rebuscar y trae cosas' };
+// supervivientes anónimos que deambulan por las calles (generados siempre igual)
+{ let sd = 90210; const rr = () => (sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296, pk = a => a[Math.floor(rr() * a.length)];
+  const MN = ['Marc', 'Pol', 'Jordi', 'Sergi', 'Oriol', 'Iván', 'Rubén', 'Toni', 'Quim', 'Nil', 'Hugo', 'Adri', 'Biel', 'Pau', 'Raúl', 'Óscar', 'Edu'], FN = ['Laia', 'Marta', 'Núria', 'Carla', 'Júlia', 'Aina', 'Mireia', 'Paula', 'Noa', 'Irene', 'Sílvia', 'Ona', 'Berta', 'Clara'];
+  const SK = [['scavenger', 'Rebusca en las ruinas'], ['scavenger', 'Conoce todos los atajos'], ['fighter', 'Sabe pelear'], ['fighter', 'No se arruga'], ['cook', 'Cocina con lo que hay'], ['farmer', 'Tiene mano con las plantas'], ['builder', 'Arregla lo que sea'], ['medic', 'Sabe de primeros auxilios'], ['trader', 'Vende de todo']];
+  const HELLO = ['¡No dispares! Estoy vivo.', 'Hacía días que no veía a nadie con pulso.', '¿Tienes algo de comer? Bueno, da igual.', 'Cuidado, por esa calle hay un montón.', 'Yo antes iba a los torneos de La Orden, ¿sabes?', 'Dicen que al oeste hay un campamento con muros.', 'No hagas ruido, que vienen en manada.', 'De noche no salgas. Hazme caso.', 'Si ves un coche con gasolina, no lo sueltes.', 'Ya no me fío ni de mi sombra.'];
+  const BR = [['water', 1], ['beans', 1], ['bandage', 1], ['bread', 1], ['soda', 2], ['choco', 2], ['rag', 3], ['chips', 2]];
+  const SKIN = ['#f0d0b4', '#eac4a8', '#dcae8a', '#c8946a', '#a87850', '#7a5236'], HAIR = ['#1c1410', '#3a2a1e', '#6e4a2e', '#8a6a3a', '#c8a060', '#5a5a5a', '#7a2a1a'], TOP = ['#5a2a2a', '#2a3a5a', '#3a5a3a', '#6a5a3a', '#4a4a52', '#7a6a2a', '#3a2a4a', '#8a8478', '#2a2a2e'], PANT = ['#2a2a2e', '#2a3a5a', '#4a4236', '#3a3a3a', '#5a5246'];
+  const places = []; for (let i = 0; i < 16; i++) places.push('__street'); for (const t of POIS) if (t.type === 'town') places.push('@@' + t.name, '@@' + t.name);
+  const used = new Set(NPC_DEFS.map(d => d.name.split(' ')[0]));
+  places.forEach((w, i) => { const f = rr() < 0.45; let name; for (let k = 0; k < 20; k++) { name = pk(f ? FN : MN); if (!used.has(name)) break; } used.add(name);
+    const [skill, role] = pk(SK), kill = rr() < 0.3, br = pk(BR), nk = 4 + Math.floor(rr() * 5);
+    NPC_DEFS.push({ id: 'sv' + i, name, role: 'Superviviente · ' + role.toLowerCase(), skill, trade: skill === 'trader' ? pk(['food', 'shop', 'mech']) : rr() < 0.5 ? 'food' : 'farm', roam: true, gun: skill === 'fighter' && rr() < 0.3, where: [w],
+      o: { lod: true, sex: f ? 'f' : 'm', skin: pk(SKIN), hair: pk(HAIR), style: f ? pk(['long', 'ponytail', 'bun', 'short', 'curly']) : pk(['short', 'buzz', 'messy', 'side', 'curly', 'bald']), beard: f ? 'none' : pk(['none', 'none', 'stub', 'short', 'full']), top: pk(TOP), pants: pk(PANT), outfit: pk(HUMAN.OUTFITS.filter(x => x !== 'scrubs')), body: pk(['thin', 'normal', 'normal', 'strong', 'heavy']), age: pk([0, 1, 1, 2]), hat: rr() < 0.3 ? pk(['cap', 'beanie', 'bandana']) : 'none', hatc: pk(TOP), backpack: rr() < 0.6 ? pk(['#3a3a2a', '#4a2a2a', '#2a3a4a', '#5a4a2a']) : null, gloves: rr() < 0.3 },
+      quest: kill ? { type: 'kill', n: nk, text: `Quítame de encima a ${nk} de esos y me uno a tu grupo.` } : { type: 'bring', items: { [br[0]]: br[1] }, text: `Llevo días aguantando con nada. Si me traes ${br[1]} × ${ITEMS[br[0]].n.toLowerCase()}, voy contigo a donde sea.` }, hello: pk(HELLO) }); });
+}
 const VALUE = { beans: 5, bread: 4, apple: 2, chips: 2, choco: 2, cereal: 4, water: 4, soda: 3, bottle: 1, bandage: 4, medkit: 16, pills: 5, booster: 12, bat: 8, pan: 5, knife: 6, axe: 22, pipe: 6, pistol: 35, shotgun: 60, hammer: 8, plank: 3, nails: 0.3, scrap: 3, ammo9: 1, shells: 2, rag: 1, tape: 4, alcohol: 4, sandwich: 8, club: 6, nailbat: 14, spear: 10, molotov: 8, gas: 12, stick: 1, rope: 3, stone: 0.5, seeds: 1, veg: 3, stew: 10, saxe: 8, shiv: 4, xbow: 30, bolt: 1.5 };
 const val = id => VALUE[id] ?? 2;
 const STOCK = {
@@ -48,6 +63,8 @@ function npcLabel(name) { const c = document.createElement('canvas'); c.width = 
 function findHome(def) {
   if (typeof CITY === 'undefined') return [0, 0];
   for (const w of def.where) {
+    if (w === '__street') { const pts = CITY.streetPts.filter(q => Math.abs(q[0]) < 215 && Math.abs(q[1]) < 215 && Math.hypot(q[0] + 14, q[1] + 103) > 30); const q = pts[Math.floor(rand() * pts.length)]; return [q[0], q[1]]; }
+    if (w.startsWith('@@')) { const tw = CITY.towns.find(t => t.T.name === w.slice(2)); if (tw) { const pts = CITY.streetPts.filter(q => q[0] > tw.X0 && q[0] < tw.X1 && q[1] > tw.Z0 && q[1] < tw.Z1); if (pts.length) { const q = pts[Math.floor(rand() * pts.length)]; return [q[0], q[1]]; } return [tw.T.x + 6, tw.T.z + 6]; } continue; }
     if (w === '__station') return [138, -110];
     if (w === '__park') return [40, 168];
     if (w[0] === '@') { const tw = CITY.towns.find(t => t.T.name === w.slice(1)); if (tw) { const rs = CITY.rooms.filter(r => r.sg.town === tw.T.name && r.kind !== 'casa'); const r = rs.length ? rs[Math.floor(rand() * rs.length)] : null; return r ? [(r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2] : [tw.T.x + 6, tw.T.z + 6]; } }
@@ -185,9 +202,17 @@ function updateNPCs(dt) {
       if (act && act.move) npcMoveTo(n, dt, act.move, 4, 1.0);
       else if (!act) { if (n.pos.distanceTo(home) > 1.5) { const cs = typeof CITY !== 'undefined' && CITY.campSpot, inCamp = q => cs && q.x > cs.X0 && q.x < cs.X1 && q.z > cs.Z0 && q.z < cs.Z1; const blocked = (inCamp(home) && !inCamp(n.pos) && n.pos.distanceTo(home) < 35) || n.stuckT > 2.2; if ((n.pos.distanceTo(home) > 60 || blocked) && n.pos.distanceTo(p.pos) > 18) { n.pos.set(home.x, getH(home.x, home.z), home.z); n.stuckT = 0; } else npcMoveTo(n, dt, home, 3.4, 1.2); } else { n.vel.multiplyScalar(0.85); n.wanderT = (n.wanderT || R(4, 9)) - dt; if (n.wanderT <= 0) { n.wanderT = R(5, 12); n.stay = new V3((S.camp && n.state === 'camp' ? S.camp.x : home.x) + R(-4, 4), 0, (S.camp && n.state === 'camp' ? S.camp.z : home.z) + R(-4, 4)); } } }
       if (n.state === 'camp') campJob(n, dt);
+    } else if (n.def.roam && cd > 170) { n.model.visible = false; continue;
+    } else if (n.def.roam && !S.talkOpen) { // deambula por las calles cerca de su zona
+      act = npcFight(n, dt, n.pos, 7); const dd = n.pos.distanceTo(p.pos);
+      if (act && act.move) npcMoveTo(n, dt, act.move, 3.8, 1.0);
+      else if (!act) { if (dd < 4.5) { n.vel.multiplyScalar(0.8); n.yaw = Math.atan2(-(p.pos.x - n.pos.x), -(p.pos.z - n.pos.z)); }
+        else { n.roamT = (n.roamT ?? R(0, 6)) - dt; if (!n.goal || n.roamT <= 0 || n.stuckT > 2) { n.roamT = R(14, 30); n.stuckT = 0; const pts = CITY.streetPts; let best = null; for (let k = 0; k < 12; k++) { const q = pts[RI(0, pts.length - 1)]; if (Math.hypot(q[0] - n.home[0], q[1] - n.home[1]) < 45 && Math.hypot(q[0] - n.pos.x, q[1] - n.pos.z) > 6) { best = q; break; } } n.goal = best ? new V3(best[0], 0, best[1]) : null; n.rest = R(2, 7); }
+          if (n.goal) { if (npcMoveTo(n, dt, n.goal, 1.5, 1.2) < 1.2) { n.rest -= dt; if (n.rest <= 0) n.goal = null; } } else n.vel.multiplyScalar(0.8); } }
     } else { // en su refugio
       act = npcFight(n, dt, n.pos, 6); if (act && act.move) npcMoveTo(n, dt, act.move, 3.6, 1.0); else { n.vel.multiplyScalar(0.8); const dd = n.pos.distanceTo(p.pos); if (dd < 7) n.yaw = Math.atan2(-(p.pos.x - n.pos.x), -(p.pos.z - n.pos.z)); }
     }
+    if (n.state !== 'camp') n.job = false;
     if (act && act.face) n.yaw = Math.atan2(-(act.face.pos.x - n.pos.x), -(act.face.pos.z - n.pos.z));
     if (!act && n.hp < 100) n.hp = Math.min(100, n.hp + dt * 0.5);
     n.pos.y = getH(n.pos.x, n.pos.z);
@@ -197,19 +222,24 @@ function updateNPCs(dt) {
 function animNPC(n, dt, cd) {
   const m = n.model; m.visible = cd < 110; n.label.visible = cd > 4 && cd < 22; if (!m.visible) return;
   m.position.copy(n.pos); n.bodyYaw += angDiff(n.bodyYaw, n.yaw) * Math.min(1, dt * 10); m.rotation.set(0, n.bodyYaw, 0);
-  const P = n.c.P, sp = Math.hypot(n.vel.x, n.vel.z), mv = Math.min(1, sp / 3.5); n.walk += sp * dt * 2.4;
-  const sw = Math.sin(n.walk) * mv * 0.6; P.lL.rotation.x = sw; P.lR.rotation.x = -sw; P.kL.rotation.x = -(0.05 + Math.max(0, Math.cos(n.walk)) * 0.8 * mv); P.kR.rotation.x = -(0.05 + Math.max(0, -Math.cos(n.walk)) * 0.8 * mv);
-  P.body.rotation.set(-0.04 - mv * 0.08, 0, 0); P.rig.position.y = -Math.abs(Math.cos(n.walk)) * 0.025 * mv;
-  P.aL.rotation.set(-sw, 0, -0.08); P.eL.rotation.x = 0.2 + mv * 0.3;
-  if (n.def.gun && (n.def.id !== 'mario' || n.gotGun) && n.atkCd > 0) { P.aR.rotation.set(Math.PI / 2, 0, 0); P.eR.rotation.x = 0.05; }
-  else if (n.swing > 0) { const t = 1 - n.swing / 0.32; P.aR.rotation.set(2.6 - t * 3.0, 0, 0.3 - t * 0.4); P.eR.rotation.x = 0.4; }
-  else { P.aR.rotation.set(sw * 0.6 + 0.3, 0, 0.08); P.eR.rotation.x = 0.5; }
-  P.head.rotation.set(0, Math.sin(S.time * 0.6 + n.def.id.length) * 0.25 * (1 - mv), 0);
+  const P = n.c.P, sp = Math.hypot(n.vel.x, n.vel.z), run = sp > 4.3, mv = Math.min(1, sp / (run ? 4.5 : 2.6)), t = S.time, ph = n.ph || (n.ph = n.def.id.length * 1.7 + n.home[0]); n.walk += sp * dt * (run ? 1.95 : 2.6);
+  locoPose(P, n.walk, mv, run, t, ph);
+  const idle = 1 - mv, gun = n.def.gun && (n.def.id !== 'mario' || n.gotGun);
+  // mira alrededor; si el jugador está cerca le mira y le saluda
+  const pd = S.p ? Math.hypot(S.p.pos.x - n.pos.x, S.p.pos.z - n.pos.z) : 99;
+  if (pd < 7 && n.state === 'home') { if (!n.near) { n.near = true; n.greet = 1.5; } } else if (pd > 10) n.near = false;
+  P.head.rotation.y += Math.sin(t * 0.6 + ph) * 0.3 * idle * (pd < 7 ? 0.2 : 1); P.head.rotation.x += Math.sin(t * 0.37 + ph) * 0.06 * idle;
+  if (gun && n.atkCd > 0.45) { const kick = n.swing > 0 ? n.swing / 0.12 : 0; P.aR.rotation.set(Math.PI / 2 + kick * 0.25, 0, -0.08); P.eR.rotation.x = 0.06; P.aL.rotation.set(Math.PI / 2 - 0.05, -0.55, 0.35); P.eL.rotation.x = 0.35; P.body.rotation.y = -0.25; P.head.rotation.y = 0.25; }
+  else if (n.swing > 0 && !gun) meleePose(P, 1 - n.swing / 0.32);
+  else { P.aR.rotation.x = P.aR.rotation.x * 0.45 + 0.4; P.eR.rotation.x = 0.55; }
+  if (n.greet > 0) { n.greet -= dt; const g = Math.sin(Math.min(1, (1.5 - n.greet) * 4) * Math.PI / 2) * Math.min(1, n.greet * 5); P.aL.rotation.set(2.75 * g, 0, -0.35 * g - 0.07); P.eL.rotation.x = 0.5 * g + Math.sin(t * 11) * 0.3 * g; }
+  else if (n.job && idle > 0.8) { const k = Math.sin(t * 5 + ph); P.body.rotation.x = -0.45; P.aL.rotation.set(0.9 + k * 0.25, 0, 0.1); P.aR.rotation.set(0.9 - k * 0.25, 0, -0.1); P.eL.rotation.x = P.eR.rotation.x = 0.7; P.kL.rotation.x = P.kR.rotation.x = -0.5; P.lL.rotation.x = P.lR.rotation.x = 0.5; }
 }
 // trabajos en el campamento
 function campBox() { return S.camp && S.camp.pc && S.camp.pc.cont; }
 function campJob(n, dt) {
   const p = S.p, box = campBox(), sk = n.def.skill; if (!S.camp) return;
+  n.wk = (n.wk ?? R(5, 20)) - dt; if (n.wk < -5) n.wk = R(10, 25); n.job = n.wk < 0 && sk !== 'fighter' && sk !== 'trader';
   const pIn = Math.hypot(p.pos.x - S.camp.x, p.pos.z - S.camp.z) < 12;
   if (sk === 'medic' && pIn && p.alive) { if (p.hp < 100) p.hp = Math.min(100, p.hp + 2 * dt); if (p.bleed) { p.bleed = 0; msg(`${n.def.name} te ha vendado la herida`, 1.6); } for (const o of S.npcs) if (o.alive && o.state === 'camp' && o.hp < 100) o.hp = Math.min(100, o.hp + 3 * dt); }
   if (sk === 'mechanic') for (const c of S.cars) if (Math.hypot(c.pos.x - S.camp.x, c.pos.z - S.camp.z) < 18 && c !== S.drive) { c.fuel = Math.min(100, c.fuel + dt * 0.4); if (c.hp > 0) c.hp = Math.min(100, c.hp + dt * 0.6); }

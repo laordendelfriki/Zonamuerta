@@ -414,10 +414,10 @@ function animZombie(z, dt, sp) {
   const amp = (run ? 0.75 : 0.42) * mv, sL = Math.sin(w), sR = Math.sin(w + Math.PI) * (z.limp ? 0.55 : 1);
   P.lL.rotation.set(sL * amp + (run ? 0.1 : 0), 0, -0.04); P.lR.rotation.set(sR * amp + (run ? 0.1 : 0), 0, 0.04);
   P.kL.rotation.x = -(0.08 + Math.max(0, Math.cos(w)) * (run ? 1.3 : 0.7) * mv); P.kR.rotation.x = -(0.08 + Math.max(0, Math.cos(w + Math.PI)) * (run ? 1.3 : 0.7) * mv * (z.limp ? 0.4 : 1));
-  P.rig.position.set(0, -Math.abs(Math.cos(w)) * 0.03 * mv - (z.limp ? Math.max(0, Math.sin(w)) * 0.04 : 0), 0); P.rig.rotation.set(0, 0, 0);
+  P.rig.position.set(Math.sin(w) * 0.025 * mv, -Math.abs(Math.sin(w)) * 0.035 * mv - (z.limp ? Math.max(0, Math.sin(w)) * 0.05 : 0), 0); P.rig.rotation.set(0, 0, Math.sin(w) * 0.035 * mv + (z.limp ? 0.04 : 0));
   // tronco encorvado, balanceo y sacudidas
   const idle = 1 - mv;
-  P.body.rotation.set(-(z.lean + (run ? 0.25 : 0)) + Math.sin(t * 1.1) * 0.04 * idle + (z.stun > 0 ? 0.35 : 0) + (z.hitT > 0 ? 0.25 : 0), Math.sin(w) * 0.12 * mv + tw, Math.sin(w) * 0.07 * mv + Math.sin(t * 0.7) * 0.05 * idle + (z.limp ? 0.06 : 0));
+  P.body.rotation.set(-(z.lean + (run ? 0.25 : 0)) + Math.sin(t * 1.1) * 0.04 * idle + (z.stun > 0 ? 0.35 : 0) + (z.hitT > 0 ? 0.25 : 0) - (z.wind > 0 ? 0.28 : 0) - (z.state === 'chase' ? 0.08 * mv : 0), Math.sin(w) * 0.12 * mv + tw, Math.sin(w) * 0.07 * mv + Math.sin(t * 0.7) * 0.05 * idle + (z.limp ? 0.06 : 0));
   // brazos: tendidos hacia delante, uno colgando o ambos colgando
   const reach = z.wind > 0 ? 2.5 - z.wind * 2.2 : 1.35, bob = Math.sin(t * 2.3) * 0.08;
   const armR = (mode, side) => { if (z.wind > 0 || z.state === 'chase' && mode < 2 || mode === 0 || (mode === 1 && side > 0)) return [reach + bob * side, 0.35 + (z.wind > 0 ? 0.2 : 0)]; return [-Math.sin(w) * side * 0.35 * mv + 0.05, 0.15 + Math.sin(t * 1.3 + side) * 0.08]; };
@@ -813,26 +813,42 @@ function updatePlayer(dt) {
   if (p.food > 55 && p.water > 55 && !p.bleed && p.hp < 100) p.hp = Math.min(100, p.hp + dt * 0.12);
   if (p.hp <= 0) die(p.cause);
 }
+// pose de locomoción compartida (jugador en 3ª persona y supervivientes)
+const sst = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function locoPose(P, w, mv, run, t, ph = 0) {
+  const s = Math.sin(w), c = Math.cos(w), amp = (run ? 0.95 : 0.55) * mv, idle = 1 - mv, br = Math.sin(t * 1.7 + ph), sh = Math.sin(t * 0.45 + ph);
+  P.lL.rotation.set(s * amp + (run ? 0.1 : 0) * mv, 0, -0.03 - idle * 0.03 + sh * 0.02 * idle); P.lR.rotation.set(-s * amp + (run ? 0.1 : 0) * mv, 0, 0.03 + idle * 0.03 + sh * 0.02 * idle);
+  P.kL.rotation.x = -(0.06 + Math.max(0, c) * (run ? 1.5 : 0.85) * mv + Math.max(0, -s) * 0.12 * mv); P.kR.rotation.x = -(0.06 + Math.max(0, -c) * (run ? 1.5 : 0.85) * mv + Math.max(0, s) * 0.12 * mv);
+  P.rig.position.y = -Math.abs(s) * (run ? 0.05 : 0.028) * mv - idle * 0.004 * (1 + br);
+  P.body.rotation.set(-(run ? 0.22 : 0.05) * mv - 0.015 * br * idle, -s * (run ? 0.16 : 0.09) * mv, c * 0.035 * mv + sh * 0.025 * idle);
+  const aa = (run ? 0.95 : 0.5) * mv, eb = 0.12 + (run ? 1.25 : 0.22) * mv;
+  P.aL.rotation.set(-s * aa + (run ? 0.15 : 0) * mv, 0, -0.07 - idle * 0.015 * br); P.aR.rotation.set(s * aa + (run ? 0.15 : 0) * mv, 0, 0.07 + idle * 0.015 * br);
+  P.eL.rotation.x = eb + Math.max(0, -s) * 0.35 * mv; P.eR.rotation.x = eb + Math.max(0, s) * 0.35 * mv;
+  P.head.rotation.set((run ? 0.14 : 0.02) * mv + 0.01 * br * idle, s * 0.07 * mv, 0);
+}
+// golpe cuerpo a cuerpo: toma impulso, descarga con giro de tronco y recupera (k: 0..1)
+function meleePose(P, k, idleX = 0.5) {
+  const wu = sst(0, 0.28, k), st = sst(0.28, 0.6, k), rc = sst(0.72, 1, k), hit = st * (1 - rc);
+  P.aR.rotation.set(idleX + (2.9 - idleX) * wu - 3.2 * st + (0.3 + idleX) * rc, 0, 0.1 + 0.3 * wu - 0.65 * st + 0.35 * rc);
+  P.eR.rotation.x = 0.5 + 0.8 * wu - 1.15 * st + 0.35 * rc;
+  P.body.rotation.y += 0.55 * wu - 1.15 * st + 0.6 * rc; P.body.rotation.x -= 0.2 * hit;
+  P.lR.rotation.x -= 0.3 * hit; P.lL.rotation.x += 0.22 * hit; P.kL.rotation.x -= 0.25 * hit;
+  P.head.rotation.y -= (0.3 * wu - 0.6 * st + 0.3 * rc);
+}
 function animPlayer(p, dt) {
   const P = p.c.P, m = p.model; m.position.copy(p.pos); m.visible = (S.view !== 'fp' || !p.alive) && !S.drive;
   if (!p.alive) { p.deadT = (p.deadT || 0) + dt; m.rotation.x = -Math.min(1, p.deadT * 3) * Math.PI / 2; return; }
   p.bodyYaw += angDiff(p.bodyYaw, p.yaw) * Math.min(1, dt * 14); m.rotation.set(0, p.bodyYaw, 0);
   updateHeld(p);
-  const sp = Math.hypot(p.vel.x, p.vel.z); p.walk += sp * dt * 2.4;
-  const sw = Math.sin(p.walk) * Math.min(1, sp / 3) * (p.sprint ? 0.9 : 0.6);
-  // piernas: dirección de la marcha respecto a la mirada
-  P.lL.rotation.x = sw; P.lR.rotation.x = -sw;
-  const mv = Math.min(1, sp / 3);
-  if (P.kL) { P.kL.rotation.x = -(0.05 + Math.max(0, Math.cos(p.walk)) * (p.sprint ? 1.2 : 0.75) * mv); P.kR.rotation.x = -(0.05 + Math.max(0, -Math.cos(p.walk)) * (p.sprint ? 1.2 : 0.75) * mv); P.eL.rotation.x = 0.15 + (p.sprint ? 0.9 : 0.25) * mv; P.eR.rotation.x = 0.15 + (p.sprint ? 0.9 : 0.25) * mv; }
-  P.rig.position.y = -Math.abs(Math.cos(p.walk)) * 0.025 * mv;
-  P.body.rotation.set(p.sprint ? -0.18 : -0.03, 0, 0);
+  const sp = Math.hypot(p.vel.x, p.vel.z), mv = Math.min(1, sp / 3); p.walk += sp * dt * (p.sprint ? 1.95 : 2.4);
+  if (!m.visible) return;
+  locoPose(P, p.walk, mv, p.sprint, S.time);
   const E = eqDef(p);
-  P.aL.rotation.set(-sw, 0, -0.06); P.aR.rotation.set(sw, 0, 0.06);
-  if (P.eR && (E.kind === 'gun' || p.eq)) { P.eR.rotation.x = 0.5; P.eL.rotation.x = 0.5; }
-  if (E.kind === 'gun') { P.aR.rotation.set(Math.PI / 2 + (p.swing > 0 ? 0.25 : 0), 0, 0); P.aL.rotation.set(Math.PI / 2, -0.6, 0.35); }
-  else if (p.swing > 0) { const t = 1 - p.swing / 0.32; P.aR.rotation.set(2.6 - t * 3.0, 0, 0.3 - t * 0.4); P.body.rotation.y = 0.5 - t * 1.0; if (!p.eq) P.aL.rotation.set(1.4, 0, 0); }
-  else if (p.eq) P.aR.rotation.set(0.5, 0, 0.1);
-  if (p.hurtT > 0) P.body.position.x = (Math.random() - 0.5) * 0.06; else P.body.position.x = 0;
+  if (p.jy > 0) { const a = Math.min(1, p.jy / 0.35); P.lL.rotation.x = 0.7 * a; P.kL.rotation.x = -1.2 * a; P.lR.rotation.x = -0.25 * a; P.kR.rotation.x = -0.7 * a; P.aL.rotation.set(0.5 * a, 0, -0.5 * a); P.aR.rotation.set(-0.5 * a, 0, 0.5 * a); P.body.rotation.x = -0.12 * a; P.rig.position.y = 0; }
+  if (E.kind === 'gun') { const kick = p.swing > 0 ? p.swing / 0.12 : 0; P.aR.rotation.set(Math.PI / 2 + kick * 0.25, 0, -0.08); P.eR.rotation.x = 0.06 + kick * 0.2; P.aL.rotation.set(Math.PI / 2 - 0.05, -0.55, 0.35); P.eL.rotation.x = 0.35; P.body.rotation.y = -0.25; P.head.rotation.y = 0.25; P.body.rotation.x -= kick * 0.05; }
+  else if (p.swing > 0) { meleePose(P, 1 - p.swing / 0.32, p.eq ? 0.5 : 0.3); if (!p.eq) { P.aL.rotation.set(1.3, 0, 0.1); P.eL.rotation.x = 1.5; } }
+  else if (p.eq) { P.aR.rotation.x = P.aR.rotation.x * 0.4 + 0.45; P.aR.rotation.z = 0.1; P.eR.rotation.x = 0.55; }
+  if (p.hurtT > 0) { P.body.position.x = (Math.random() - 0.5) * 0.06; P.body.rotation.x += 0.2; P.head.rotation.x -= 0.25; } else P.body.position.x = 0;
 }
 function die(cause) {
   const p = S.p; if (!p.alive) return; if (S.drive) exitCarForce(); p.alive = false; p.cause = cause; p.hp = 0; closeInv(); if (document.pointerLockElement) document.exitPointerLock(); updateLock();
@@ -886,6 +902,7 @@ function vmBuildArms(look) {
   vmKey = '';
 }
 function vmMuzzle() { if (vmWeapon && vmWeapon.userData.muzzle) { camera.updateMatrixWorld(true); return vmWeapon.userData.muzzle.getWorldPosition(new V3()); } return camera.position.clone().add(new V3(0, -0.2, 0)); }
+let vmYaw0 = 0, vmPit0 = 0, vmSwX = 0, vmSwY = 0, vmRun = 0;
 function updateVM(dt) {
   const p = S.p, it = p.eq, key = it ? it.id : '';
   if (key !== vmKey) {
@@ -898,9 +915,13 @@ function updateVM(dt) {
     }
   }
   const sp = Math.hypot(p.vel.x, p.vel.z), wb = Math.min(1, sp / 3), t = S.time;
-  const bx = Math.cos(p.walk) * 0.018 * wb, by = Math.abs(Math.sin(p.walk)) * 0.02 * wb + Math.sin(t * 1.6) * 0.004;
+  const bk = p.sprint ? 1.9 : 1, bx = Math.cos(p.walk) * 0.018 * wb * bk + vmSwX, by = Math.abs(Math.sin(p.walk)) * 0.02 * wb * bk + Math.sin(t * 1.6) * 0.005 + vmSwY + vmRun * 0.05;
   const E = eqDef(p);
   VMR.rotation.set(0, 0, 0); VML.rotation.set(0, 0, 0);
+  // inercia al girar la cámara, zancada al correr y caída al saltar
+  const dyw = angDiff(vmYaw0, S.yaw), dpt = S.pitch - vmPit0; vmYaw0 = S.yaw; vmPit0 = S.pitch;
+  vmSwX = lerp(vmSwX, clamp(dyw * 2.2, -0.07, 0.07), Math.min(1, dt * 9)); vmSwY = lerp(vmSwY, clamp(dpt * 2.2, -0.05, 0.05) + (p.jy > 0 ? clamp(p.vy * 0.012, -0.06, 0.05) : 0), Math.min(1, dt * 9));
+  vmRun = lerp(vmRun, p.sprint && !(p.swing > 0) && E.kind !== 'gun' ? 1 : 0, Math.min(1, dt * 7));
   if (E.kind === 'gun') {
     const kick = p.swing > 0 ? p.swing / 0.12 : 0, rl = p.reloadT > 0 ? Math.sin(Math.min(1, (1 - p.reloadT / GUNS[ITEMS[it.id].gun].reload)) * Math.PI) : 0;
     VMR.position.set(0.17 + bx, -0.2 - by - rl * 0.15, -0.36 + kick * 0.06); VMR.rotation.x = kick * 0.18 - rl * 0.6;
@@ -908,8 +929,9 @@ function updateVM(dt) {
     VML.visible = true;
   } else if (it) {
     VML.visible = false;
-    if (p.swing > 0) { const k = 1 - p.swing / 0.32, e = Math.sin(k * Math.PI); VMR.position.set(0.3 - k * 0.42, -0.22 + e * 0.06, -0.42 - e * 0.12); VMR.rotation.set(-0.2 + e * 0.5, 0.6 - k * 1.3, -0.9 + k * 1.6); }
-    else { VMR.position.set(0.28 + bx, -0.27 - by, -0.42); VMR.rotation.set(0.15, 0.3, -0.25); }
+    if (p.swing > 0) { const k = 1 - p.swing / 0.32, wu = sst(0, 0.25, k), st = sst(0.25, 0.58, k), rc = sst(0.72, 1, k);
+      VMR.position.set(0.28 + 0.12 * wu - 0.52 * st + 0.4 * rc, -0.27 + 0.12 * wu - 0.1 * st - 0.02 * rc, -0.42 + 0.06 * wu - 0.22 * st + 0.16 * rc); VMR.rotation.set(0.15 - 0.55 * wu + 1.05 * st - 0.5 * rc, 0.3 + 0.45 * wu - 1.55 * st + 1.1 * rc, -0.25 - 0.55 * wu + 1.7 * st - 1.15 * rc); }
+    else { VMR.position.set(0.28 + bx - vmRun * 0.05, -0.27 - by, -0.42); VMR.rotation.set(0.15 + vmRun * 0.35 + vmSwY * 2, 0.3 + vmSwX * 3, -0.25 - vmRun * 0.3 + Math.sin(p.walk) * 0.06 * vmRun); }
   } else {
     VML.visible = true;
     const k = p.swing > 0 ? Math.sin((1 - p.swing / 0.32) * Math.PI) : 0, right = (S.punch || 0) % 2 === 0;

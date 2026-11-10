@@ -208,6 +208,7 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
   const sbox = (M, sg, u, y, v, tw, h, nd, col) => { const [x, z] = W2(sg, u, v); const ax = sg.tx !== 0; M.box(x, y, z, ax ? tw : nd, h, ax ? nd : tw, col); };
   const scol = (sg, u0, v0, u1, v1, y0, y1) => { const a = W2(sg, u0, v0), b = W2(sg, u1, v1); addBox(Math.min(a[0], b[0]), Y + y0, Math.min(a[1], b[1]), Math.max(a[0], b[0]), Y + y1, Math.max(a[1], b[1])); };
   const geoBox = new THREE.BoxGeometry(1, 1, 1), _e = new THREE.Euler(), _m2 = new THREE.Matrix4();
+  const rbx = (M, x, y, z, w, h, d, col, rx = 0, ry = 0, rz = 0, geo = geoBox) => { m4.compose(ps.set(x, y, z), q.setFromEuler(_e.set(rx, ry, rz)), sc.set(w, h, d)); M.geo(geo, m4, col); };
   // tablones clavados en una ventana (sg: segmento, u: posición, y: altura del centro)
   function boardUp(sg, u, y, W = 1.35, H = 1.6) {
     const ang = Math.atan2(sg.tx, sg.tz);
@@ -608,7 +609,68 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
       // torres de vigilancia
       for (const [tx, tz] of [[X0 + 1.5, Z0 + 1.5], [X1 - 1.5, Z0 + 1.5], [X0 + 1.5, Z1 - 1.5], [X1 - 1.5, Z1 - 1.5]]) { for (const a of [-1, 1]) for (const b of [-1, 1]) WOD.box(tx + a * 1.1, Y + 2.6, tz + b * 1.1, 0.16, 5.2, 0.16, 0x6a4a32); WOD.box(tx, Y + 4.4, tz, 2.6, 0.12, 2.6, 0xb08050); for (const a of [-1, 1]) { WOD.box(tx + a * 1.25, Y + 4.95, tz, 0.08, 1.0, 2.5, 0xc8a878); WOD.box(tx, Y + 4.95, tz + a * 1.25, 2.5, 1.0, 0.08, 0xc8a878); } SOL.box(tx, Y + 6.0, tz, 3.0, 0.08, 3.0, 0x4a5a3a); for (let k = 0; k < 9; k++) WOD.box(tx + 1.15, Y + 0.3 + k * 0.5, tz - 1.3, 0.5, 0.05, 0.05, 0x8a6a4a); addBox(tx - 1.2, Y, tz - 1.2, tx + 1.2, Y + 2, tz + 1.2); }
       // tiendas de campaña, sacos y bidones
-      for (const [tx, tz, rot] of [[C.x - 14, C.z + 10, 0], [C.x - 6, C.z + 12, 0], [C.x + 12, C.z + 10, 1]]) { m4.compose(ps.set(tx, Y + 1.1, tz), q.setFromEuler(_e.set(0, rot ? Math.PI / 2 : 0, Math.PI / 4)), sc.set(2.0, 2.0, 3.6)); SOL.geo(geoBox, m4, pick([0x4a5a3a, 0x3a4a5a, 0x5a4a3a])); addBox(tx - (rot ? 1.8 : 1.4), Y, tz - (rot ? 1.4 : 1.8), tx + (rot ? 1.8 : 1.4), Y + 2, tz + (rot ? 1.4 : 1.8)); }
+      const geoPrism = new THREE.CylinderGeometry(1, 1, 1, 3); geoPrism.rotateX(Math.PI / 2); geoPrism.rotateZ(Math.PI);
+      const rbox = (M, x, y, z, w, h, d, col, rx = 0, ry = 0, rz = 0, geo = geoBox) => { m4.compose(ps.set(x, y, z), q.setFromEuler(_e.set(rx, ry, rz)), sc.set(w, h, d)); M.geo(geo, m4, col); };
+      const post = (x, z, h, col = 0x6a4a32, r = 0.16) => { WOD.box(x, Y + h / 2, z, r, h, r, col); addCircle(x, z, 0.14, Y, Y + h); };
+      // suelo: caminos de tierra pisada, palés y zona del fuego
+      DEC.box(C.x, Y + 0.05, C.z - 9.5, 3.4, 0.01, 19, 0x6e6252); DEC.box(C.x - 7, Y + 0.05, C.z + 0.5, 17, 0.01, 2.6, 0x6e6252); DEC.box(C.x + 9, Y + 0.05, C.z + 1, 15, 0.01, 2.6, 0x6e6252); DEC.box(C.x + 14.5, Y + 0.05, C.z - 4, 2.6, 0.01, 10, 0x6e6252);
+      for (let k = 0; k < 9; k++) { const pz = Z0 + 4.5 + k * 1.55; for (let j = 0; j < 5; j++) WOD.box(C.x - 0.72 + j * 0.36 + (k % 2) * 0.03, Y + 0.07, pz, 0.3, 0.05, 1.35, j % 2 ? 0xb89a70 : 0xa88a62); }
+      for (let k = 0; k < 60; k++) { const a = rand() * 6.28, r = R(1.2, 3.2); m4.compose(ps.set(C.x - 3 + Math.cos(a) * r, Y + 0.055, C.z - 5 + Math.sin(a) * r), q.identity(), sc.set(R(0.2, 0.6), 0.004, R(0.2, 0.6))); DEC.geo(geoCyl, m4, pick([0x3a342c, 0x4a4238, 0x2a2622])); }
+      // tiendas de campaña de verdad (lona a dos aguas, entrada oscura, vientos y piquetas)
+      for (const [tx, tz, rot, tc] of [[C.x - 14, C.z + 10, 0, 0x55663a], [C.x - 6, C.z + 12, 0, 0x3a4a5e], [C.x + 12, C.z + 10, 1, 0x6a5238], [C.x + 18, C.z + 13, 1, 0x55663a], [C.x - 19, C.z + 14, 0, 0x8a2a24]]) {
+        const ry = rot ? Math.PI / 2 : 0, w = 2.9, h = 1.9, len = 3.8, fx = rot ? 1 : 0, fz = rot ? 0 : 1;
+        rbox(SOL, tx, Y + h / 3, tz, w / 1.732, h / 1.5, len, tc, 0, ry, 0, geoPrism); rbox(SOL, tx, Y + h / 3 - 0.02, tz, w / 1.732 * 0.72, h / 1.5 * 0.72, len + 0.06, 0x14140f, 0, ry, 0, geoPrism);
+        rbox(WOD, tx, Y + h + 0.02, tz, 0.07, 0.07, len + 0.5, 0x5a4a32, 0, ry, 0); SOL.box(tx, Y + 0.04, tz, rot ? len + 0.5 : w + 0.5, 0.05, rot ? w + 0.5 : len + 0.5, 0x4a4238);
+        for (const a of [-1, 1]) for (const b of [-1, 1]) { const px = tx + (rot ? b * (len / 2 - 0.3) : a * (w / 2 + 0.45)), pz = tz + (rot ? a * (w / 2 + 0.45) : b * (len / 2 - 0.3)); WOD.box(px, Y + 0.12, pz, 0.05, 0.24, 0.05, 0x8a6a4a); }
+        MET.box(tx + fx * (len / 2 + 0.7), Y + 0.5, tz - fz * (len / 2 + 0.7), 0.12, 0.3, 0.12, 0x8a2a1a); LMP.box(tx + fx * (len / 2 + 0.7), Y + 0.72, tz - fz * (len / 2 + 0.7), 0.1, 0.14, 0.1, 0xffd890);
+        addBox(tx - (rot ? len / 2 : w / 2), Y, tz - (rot ? w / 2 : len / 2), tx + (rot ? len / 2 : w / 2), Y + 1.8, tz + (rot ? w / 2 : len / 2)); }
+      // dormitorio: cobertizo de chapa sobre las camas
+      { const dx = C.x - 14.75, dz = C.z - 2; for (const a of [-1, 1]) for (const b of [-1, 1]) post(dx + a * 3.1, dz + b * 1.9, b > 0 ? 2.9 : 2.4);
+        rbox(MET, dx, Y + 2.72, dz, 6.9, 0.07, 4.6, 0x8a8478, -0.13, 0, 0); rbox(MET, dx + 1.2, Y + 2.78, dz + 0.4, 2.2, 0.05, 3.0, 0x9a5a3a, -0.13, 0.1, 0);
+        for (let k = 0; k < 6; k++) WOD.box(dx, Y + 0.3 + k * 0.42, dz + 1.95, 6.2, 0.36, 0.06, k % 2 ? 0xa88a62 : 0x98794f); addBox(dx - 3.1, Y, dz + 1.85, dx + 3.1, Y + 2.6, dz + 2.05);
+        WOD.box(dx - 2.6, Y + 0.3, dz + 1.3, 0.7, 0.6, 0.6, 0xb8834a); WOD.box(dx + 2.7, Y + 0.25, dz + 1.3, 0.5, 0.5, 0.5, 0x8a6a4a); LMP.box(dx, Y + 2.35, dz + 1.7, 0.16, 0.2, 0.16, 0xffd890); }
+      // taller: toldo de lona azul sobre el banco de trabajo
+      { const wx = C.x + 7, wz = C.z + 6; for (const a of [-1, 1]) for (const b of [-1, 1]) post(wx + a * 2.3, wz + b * 1.7, b > 0 ? 2.7 : 2.3, 0x5a5a60, 0.1);
+        rbox(SOL, wx, Y + 2.55, wz, 5.2, 0.05, 4.0, 0x2a5a8a, -0.11, 0, 0); MET.box(wx + 1.9, Y + 0.45, wz + 1.2, 0.5, 0.9, 0.5, 0x8a2a2a); MET.box(wx - 1.9, Y + 0.3, wz + 1.3, 0.8, 0.6, 0.5, 0x4a5a3a);
+        for (let k = 0; k < 4; k++) rbox(MET, wx - 2.6 - k * 0.07, Y + 0.34, wz - 0.3 + k * 0.02, 0.2, 0.66, 0.66, 0x1a1a1c, 0, 0, Math.PI / 2, geoCyl); LMP.box(wx, Y + 2.25, wz, 0.16, 0.2, 0.16, 0xffd890); }
+      // troncos para sentarse junto al fuego y olla
+      for (const [a, r] of [[0.3, 1.9], [1.9, 2.0], [3.5, 1.9], [5.0, 2.0]]) { const lx = C.x - 3 + Math.cos(a) * r, lz = C.z - 5 + Math.sin(a) * r; rbox(BRKT, lx, Y + 0.2, lz, 0.2, 1.5, 0.2, 0xffffff, 0, -a, Math.PI / 2, geoCyl); }
+      for (const a of [0, 2.1, 4.2]) rbox(MET, C.x - 3 + Math.cos(a) * 0.45, Y + 0.75, C.z - 5 + Math.sin(a) * 0.45, 0.03, 1.6, 0.03, 0x2a2a2e, Math.sin(a) * 0.28, 0, -Math.cos(a) * 0.28);
+      rbox(MET, C.x - 3, Y + 0.85, C.z - 5, 0.22, 0.26, 0.22, 0x1c1c20, 0, 0, 0, geoCyl);
+      // depósito de agua elevado
+      { const tx = C.x + 18.5, tz = C.z - 13; for (const a of [-1, 1]) for (const b of [-1, 1]) post(tx + a * 1.1, tz + b * 1.1, 3.4, 0x5a4632, 0.18); WOD.box(tx, Y + 3.45, tz, 2.8, 0.14, 2.8, 0x98794f);
+        rbox(MET, tx, Y + 4.5, tz, 1.25, 2.0, 1.25, 0x5a7a8a, 0, 0, 0, geoCyl); rbox(MET, tx, Y + 5.55, tz, 1.32, 0.1, 1.32, 0x3a4a52, 0, 0, 0, geoCyl); for (const y of [3.9, 5.0]) rbox(MET, tx, Y + y, tz, 1.28, 0.08, 1.28, 0x3a3a40, 0, 0, 0, geoCyl);
+        for (let k = 0; k < 7; k++) WOD.box(tx - 1.25, Y + 0.3 + k * 0.48, tz + 1.2, 0.5, 0.05, 0.05, 0x8a6a4a); MET.box(tx + 0.9, Y + 1.7, tz + 1.3, 0.07, 3.4, 0.07, 0x3a5a6a); }
+      // huerto ampliado con vallita
+      { const gx = C.x - 5.5, gz = C.z + 4.6; for (let r = 0; r < 3; r++) { SOL.box(gx, Y + 0.09, gz + r * 0.9, 6.4, 0.12, 0.55, 0x3a2a1c); for (let k = 0; k < 11; k++) { m4.compose(ps.set(gx - 2.9 + k * 0.58 + R(-0.05, 0.05), Y + 0.26, gz + r * 0.9), q.setFromEuler(_e.set(0, R(0, 3), 0)), sc.set(0.16, R(0.14, 0.26), 0.16)); SOL.geo(geoSph, m4, pick([0x3a8a2a, 0x4a9a3a, 0x2a6a22, 0x6a9a2a])); } }
+        for (let k = 0; k <= 14; k++) { WOD.box(gx - 3.5 + k * 0.5, Y + 0.4, gz + 2.5, 0.08, 0.8, 0.04, 0xc8b898); if (k % 7 === 0) WOD.box(gx - 3.5 + k * 0.5, Y + 0.45, gz + 2.5, 0.1, 0.9, 0.1, 0x8a6a4a); } WOD.box(gx, Y + 0.6, gz + 2.5, 7.1, 0.06, 0.05, 0xb8a888); WOD.box(gx, Y + 0.25, gz + 2.5, 7.1, 0.06, 0.05, 0xb8a888);
+        rbox(WOD, gx + 3.9, Y + 0.55, gz + 1, 0.04, 1.1, 0.04, 0x8a6a4a, 0, 0, 0.2); MET.box(gx + 3.6, Y + 0.18, gz - 0.2, 0.3, 0.36, 0.3, 0x5a7a8a); }
+      // tendedero
+      { const lx0 = C.x - 20.5, lx1 = C.x - 11, lz = C.z + 4.6; post(lx0, lz, 2.1, 0x8a6a4a, 0.09); post(lx1, lz, 2.1, 0x8a6a4a, 0.09); FLAT.box((lx0 + lx1) / 2, Y + 2.0, lz, lx1 - lx0, 0.02, 0.02, 0xd8d0c0);
+        for (let k = 0; k < 8; k++) { const h = R(0.5, 0.95); FLAT.box(lx0 + 0.9 + k * 1.05, Y + 2.0 - h / 2, lz, R(0.5, 0.8), h, 0.03, pick([0xc8c0b0, 0x8a3a3a, 0x3a5a7a, 0x5a7a4a, 0xd8c890, 0x4a4a52])); } }
+      // almacén: cajas apiladas, palés, neumáticos, leña y bidones
+      for (const [bx, bz, n] of [[X0 + 3.2, C.z + 3, 3], [X0 + 4.5, C.z + 3.3, 2], [X0 + 3.4, C.z + 4.6, 2], [X1 - 3, C.z + 5, 3], [X1 - 4.3, C.z + 5.4, 1]]) { for (let k = 0; k < n; k++) rbox(WOD, bx + R(-0.06, 0.06), Y + 0.42 + k * 0.84, bz + R(-0.06, 0.06), 0.84, 0.82, 0.84, pick([0xb8834a, 0xa87840, 0x98794f, 0x5a6a3a]), 0, R(-0.15, 0.15), 0); addBox(bx - 0.45, Y, bz - 0.45, bx + 0.45, Y + n * 0.84, bz + 0.45); }
+      for (const [bx, bz, n] of [[X1 - 3.2, C.z + 0.5, 4], [X1 - 4.5, C.z + 0.2, 3], [X0 + 6, Z0 + 3, 3]]) { for (let k = 0; k < n; k++) rbox(MET, bx + R(-0.05, 0.05), Y + 0.13 + k * 0.26, bz + R(-0.05, 0.05), 0.42, 0.25, 0.42, 0x18181a, 0, 0, 0, geoCyl); addCircle(bx, bz, 0.45, Y, Y + n * 0.26); }
+      for (let r = 0; r < 4; r++) for (let k = 0; k < 7 - r; k++) rbox(BRKT, X0 + 9 + k * 0.3 + r * 0.15, Y + 0.14 + r * 0.26, Z1 - 2.2, 0.14, 1.3, 0.14, 0xffffff, Math.PI / 2, 0, 0, geoCyl); addBox(X0 + 8.8, Y, Z1 - 2.9, X0 + 11.2, Y + 1.1, Z1 - 1.5);
+      for (const [bx, bz] of [[X1 - 6, Z1 - 2.5], [X1 - 7, Z1 - 2.3], [X1 - 6.4, Z1 - 3.3], [C.x + 3.2, Z0 + 3.4]]) { rbox(MET, bx, Y + 0.45, bz, 0.32, 0.9, 0.32, pick([0x2a5a9a, 0x8a2a2a, 0x4a5a3a, 0xc8a020]), 0, 0, 0, geoCyl); addCircle(bx, bz, 0.35, Y, Y + 0.9); }
+      // furgoneta del grupo y mesa de mapas
+      car(C.x + 17, C.z + 3.5, 0.25, 0x5a6a4a, 0);
+      // guirnaldas de bombillas sobre la plaza central
+      { const PL = [[C.x - 9, C.z - 9], [C.x + 9, C.z - 9], [C.x + 9, C.z + 8], [C.x - 9, C.z + 8]]; for (const [px, pz] of PL) post(px, pz, 4.2, 0x4a3a2a, 0.11);
+        const run = (ax, az, bx, bz) => { const n = Math.round(Math.hypot(bx - ax, bz - az) / 0.9); for (let k = 1; k < n; k++) { const t = k / n, sag = Math.sin(t * Math.PI) * 0.7, x = ax + (bx - ax) * t, z = az + (bz - az) * t; LMP.box(x, Y + 4.1 - sag, z, 0.09, 0.12, 0.09, pick([0xffe0a0, 0xffd080, 0xfff0c8])); FLAT.box(x, Y + 4.19 - sag, z, 0.03, 0.06, 0.03, 0x1a1a1a); } };
+        for (let k = 0; k < 4; k++) run(PL[k][0], PL[k][1], PL[(k + 1) % 4][0], PL[(k + 1) % 4][1]); run(PL[0][0], PL[0][1], C.x, C.z); run(PL[1][0], PL[1][1], C.x, C.z); run(PL[2][0], PL[2][1], C.x, C.z); run(PL[3][0], PL[3][1], C.x, C.z); }
+      // arco de entrada con rótulo y estandartes
+      { const gx0 = C.x - gw / 2 - 0.35, gx1 = C.x + gw / 2 + 0.35; for (const gx of [gx0, gx1]) { WOD.box(gx, Y + 2.4, Z0, 0.4, 4.8, 0.4, 0x5a4632); FLAT.box(gx, Y + 3.3, Z0 - 0.23, 0.5, 1.5, 0.03, 0x9a1c22); FLAT.box(gx, Y + 3.3, Z0 - 0.25, 0.22, 0.22, 0.02, 0xe8d8a0); MET.box(gx, Y + 4.9, Z0, 0.1, 0.5, 0.1, 0x3a3a40); LMP.box(gx, Y + 5.2, Z0, 0.3, 0.24, 0.3, 0xfff0c0); }
+        WOD.box(C.x, Y + 4.45, Z0, gw + 1.2, 0.3, 0.34, 0x6a5238); WOD.box(C.x, Y + 3.9, Z0, gw + 0.4, 0.9, 0.1, 0x3a2a1c);
+        for (const s2 of [-1, 1]) { const sm = signMesh('LA ORDEN', '#2a1c12', '#ffb43a', 4.3); sm.position.set(C.x, Y + 3.9, Z0 + s2 * 0.07); sm.rotation.y = s2 < 0 ? Math.PI : 0; scene.add(sm); } }
+      // estandartes en las torres y focos
+      for (const [tx, tz] of [[X0 + 1.5, Z0 + 1.5], [X1 - 1.5, Z0 + 1.5], [X0 + 1.5, Z1 - 1.5], [X1 - 1.5, Z1 - 1.5]]) { const sx = tx < C.x ? -1 : 1, sz = tz < C.z ? -1 : 1; FLAT.box(tx + sx * 1.33, Y + 3.6, tz, 0.03, 1.5, 0.9, 0x9a1c22); FLAT.box(tx, Y + 3.6, tz + sz * 1.33, 0.9, 1.5, 0.03, 0x9a1c22); MET.box(tx, Y + 6.6, tz, 0.06, 1.2, 0.06, 0x3a3a40); FLAT.box(tx + 0.3, Y + 7.0, tz, 0.6, 0.36, 0.02, 0x9a1c22); LMP.box(tx - sx * 1.1, Y + 5.75, tz - sz * 1.1, 0.3, 0.2, 0.3, 0xfff6d8); for (let k = 0; k < 5; k++) { m4.compose(ps.set(tx + sx * (0.6 - k * 0.3), Y + 4.62, tz + sz * 1.05), q.identity(), sc.set(0.3, 0.14, 0.2)); SOL.geo(geoSph, m4, 0xa8946a); } }
+      // estacas afiladas por fuera del muro y chatarra de refuerzo
+      { const stake = (x, z, ax, az) => rbox(WOD, x + ax * 0.75, Y + 0.6, z + az * 0.75, 0.11, 1.9, 0.11, pick([0x6a4a32, 0x7a5a3a, 0x5a4028]), az * 0.85, 0, -ax * 0.85);
+        for (let x = X0 + 0.6; x < X1; x += 1.15) { stake(x, Z1, 0, 1); if (Math.abs(x - C.x) > gw / 2 + 2.5) stake(x, Z0, 0, -1); } for (let z = Z0 + 0.6; z < Z1; z += 1.15) { stake(X0, z, -1, 0); stake(X1, z, 1, 0); }
+        for (let k = 0; k < 26; k++) { const side = RI(0, 3), u = R(0.05, 0.95), x = side < 2 ? X0 + (X1 - X0) * u : side === 2 ? X0 : X1, z = side < 2 ? (side ? Z1 : Z0) : Z0 + (Z1 - Z0) * u; if (side === 0 && Math.abs(x - C.x) < gw / 2 + 1.2) continue; const ax = side < 2; MET.box(x + (ax ? 0 : (side === 2 ? -0.09 : 0.09)), Y + R(1.4, 2.5), z + (ax ? (side ? 0.09 : -0.09) : 0), ax ? R(1, 2.2) : 0.05, R(0.6, 1.3), ax ? 0.05 : R(1, 2.2), pick([0x7a3a2a, 0x4a5a6a, 0x8a8a4a, 0x5a5a5e, 0x9a6a3a])); } }
+      // carteles de aviso en el camino
+      for (const sx of [-3.4, 3.4]) { WOD.box(C.x + sx, Y + 0.9, Z0 - 7, 0.08, 1.8, 0.08, 0x6a4a32); FLAT.box(C.x + sx, Y + 1.5, Z0 - 7.06, 1.0, 0.6, 0.04, sx < 0 ? 0xd8c020 : 0xe8e0d0); FLAT.box(C.x + sx, Y + 1.5, Z0 - 7.09, 0.7, 0.12, 0.02, 0x1a1a1a); }
       for (let k = -4; k <= 4; k++) for (let st = 0; st < 2; st++) { m4.compose(ps.set(C.x + k * 0.62 + (st % 2) * 0.3, Y + 0.16 + st * 0.27, Z0 + 3.2), q.identity(), sc.set(0.34, 0.15, 0.24)); if (Math.abs(k) > 1) SOL.geo(geoSph, m4, 0xa8946a); }
       for (const [bx, bz] of [[X1 - 4, C.z - 6], [X1 - 4.8, C.z - 5.3], [X0 + 4, C.z - 8]]) { m4.compose(ps.set(bx, Y + 0.45, bz), q.identity(), sc.set(0.32, 0.9, 0.32)); MET.geo(geoCyl, m4, pick([0x2a5a9a, 0x8a2a2a, 0x4a5a3a])); addCircle(bx, bz, 0.35, Y, Y + 0.9); }
       for (const [fx, fz] of [[X0 + 3, Z1 - 3], [X1 - 3, Z1 - 3]]) { MET.box(fx, Y + 2, fz, 0.1, 4, 0.1, 0x3a3a40); LMP.box(fx, Y + 4, fz, 0.6, 0.3, 0.3, 0xfff0c0); }
@@ -637,6 +699,41 @@ const CITY = { rooms: [], conts: [], spawn: null, streetPts: [], labels: [], lam
     for (let k = 0; k < Math.floor(len / 45); k++) { const t = R(10, len - 10), x = alongZ ? ax + R(-2.5, 2.5) : Math.min(ax, bx2) + t, z = alongZ ? Math.min(az, bz2) + t : az + R(-2.5, 2.5), r = rand(); car(x, z, (alongZ ? 0 : Math.PI / 2) + R(-0.6, 0.6), pick(CARC), r < 0.45 ? 1 : r < 0.6 ? 2 : 0); }
     for (let k = 0; k < len / 6; k++) { const t = R(0, len); CITY.streetPts.push(alongZ ? [ax + R(-3, 3), Math.min(az, bz2) + t] : [Math.min(ax, bx2) + t, az + R(-3, 3)]); }
     const sx = alongZ ? ax + 6.5 : Math.min(ax, bx2) + 12, sz2 = alongZ ? Math.min(az, bz2) + 12 : az + 6.5; MET.box(sx, Y + 1.2, sz2, 0.08, 2.4, 0.08, 0x8a8c92);
+  }
+  // ---------- ciudad abandonada: vegetación invasora, banderines, vehículos grandes y trastos ----------
+  { useArea('city'); const geoLeaf = new THREE.IcosahedronGeometry(1, 0); const GRN = [0x2f5a22, 0x3a6a2a, 0x24481c, 0x4a7a30, 0x567a2a, 0x6a6a2a];
+    // hiedra que trepa por las fachadas
+    for (const sg of segs) { if (sg.town || (sg.room && sg.room.name) || rand() > 0.42) continue; const n = RI(1, 2);
+      for (let c = 0; c < n; c++) { const u0 = R(-sg.w / 2 + 1, sg.w / 2 - 1), top = R(2.5, Math.min(sg.H - 0.5, 11)), wd = R(1.2, 3.2);
+        for (let k = 0; k < 15; k++) { const t = Math.pow(rand(), 1.4), y = t * top, sp = wd * (1 - t * 0.75), u = clamp(u0 + R(-sp, sp), -sg.w / 2 + 0.3, sg.w / 2 - 0.3), [ix, iz] = W2(sg, u, -0.04), rw = R(0.45, 0.95), ax = sg.tx !== 0; m4.compose(ps.set(ix, Y + y + 0.3, iz), q.setFromEuler(_e.set(ax ? 0 : R(0, 3), 0, ax ? R(0, 3) : 0)), sc.set(ax ? rw : 0.13, R(0.35, 0.85), ax ? 0.13 : rw)); SOL.geo(geoLeaf, m4, pick(GRN)); }
+        for (let k = 0; k < 4; k++) { const [bx, bz] = W2(sg, u0 + R(-wd, wd), -R(0.3, 0.7)); m4.compose(ps.set(bx, Y + 0.3, bz), q.setFromEuler(_e.set(0, R(0, 6), 0)), sc.set(R(0.4, 0.8), R(0.3, 0.6), R(0.4, 0.8))); SOL.geo(geoLeaf, m4, pick(GRN)); } } }
+    // arbustos y matojos que rompen el asfalto
+    for (let k = 0; k < 110; k++) { const [x, z] = onStreet(); if (!clearOfCross(x, z, 7)) continue; const n = RI(2, 4); for (let j = 0; j < n; j++) { m4.compose(ps.set(x + R(-0.5, 0.5), Y + 0.25, z + R(-0.5, 0.5)), q.setFromEuler(_e.set(0, R(0, 6), 0)), sc.set(R(0.3, 0.6), R(0.25, 0.55), R(0.3, 0.6))); SOL.geo(geoLeaf, m4, pick(GRN)); } DEC.box(x, Y + 0.07, z, R(1, 2), 0.01, R(1, 2), 0x3a3a30); }
+    // banderines descoloridos de la fiesta mayor cruzando las calles
+    const BUNT = [0xb84a3a, 0xc8a83a, 0x3a6a9a, 0x4a8a4a, 0xd8d0c0, 0xa85a8a];
+    for (let i = 0; i < XS.length; i++) for (let z = L0 + 22; z < L1 - 10; z += R(34, 52)) { if (ZS.some(b => Math.abs(z - b) < 12)) continue; const hw = XW[i] / 2 + SW, yy = Y + R(6.2, 7.2); FLAT.box(XS[i], yy, z, hw * 2, 0.025, 0.025, 0x2a2a2a); for (let x = -hw + 0.5; x < hw; x += 0.62) { if (rand() < 0.25) continue; const sag = (1 - (x / hw) * (x / hw)) * 0.45; rbx(FLAT, XS[i] + x, yy - 0.2 - sag, z, 0.3, 0.3, 0.02, pick(BUNT), 0, 0, Math.PI / 4); } }
+    for (let j = 0; j < ZS.length; j++) for (let x = L0 + 22; x < 140; x += R(34, 52)) { if (XS.some(b => Math.abs(x - b) < 14)) continue; const hw = ZW[j] / 2 + SW, yy = Y + R(6.2, 7.2); FLAT.box(x, yy, ZS[j], 0.025, 0.025, hw * 2, 0x2a2a2a); for (let z = -hw + 0.5; z < hw; z += 0.62) { if (rand() < 0.25) continue; const sag = (1 - (z / hw) * (z / hw)) * 0.45; rbx(FLAT, x, yy - 0.2 - sag, ZS[j] + z, 0.02, 0.3, 0.3, pick(BUNT), Math.PI / 4, 0, 0); } }
+    // autobuses y camiones militares atravesados (con colisión)
+    const bigV = (x, z, ang, kind) => { const base = new THREE.Matrix4().compose(ps.set(x, Y, z), q.setFromEuler(_e.set(0, ang, 0)), sc.set(1, 1, 1));
+      const B = (M, ox, oy, oz, w, h, d, c, geo = geoBox, rz = 0) => { m4.compose(ps.set(ox, oy, oz), q.setFromEuler(_e.set(0, 0, rz)), sc.set(w, h, d)); m4.premultiply(base); M.geo(geo, m4, c); };
+      const L = kind === 'bus' ? 11 : 7.2;
+      if (kind === 'bus') { B(SOL, 0, 1.75, 0, 2.5, 2.7, L, 0xc8c4b4); B(SOL, 0, 0.95, 0, 2.54, 0.9, L + 0.02, 0xa82a22); B(SOL, 0, 3.14, 0, 2.3, 0.12, L - 0.6, 0xa8a498); for (const sx of [-1, 1]) for (let k = 0; k < 7; k++) B(SOL, sx * 1.26, 2.3, -L / 2 + 1.3 + k * 1.42, 0.04, 0.9, 1.2, rand() < 0.3 ? 0x1a1c20 : 0x3a4a56); B(SOL, 0, 2.2, -L / 2 - 0.02, 2.2, 1.2, 0.04, 0x2a3640); B(LMP, 0, 2.95, -L / 2 - 0.03, 1.4, 0.24, 0.04, 0xd8a020); for (let k = 0; k < 6; k++) B(DEC, R(-1, 1), 0.06, R(-L / 2, L / 2), R(0.6, 1.6), 0.01, R(0.6, 1.6), 0x2a0604); }
+      else { B(SOL, 0, 1.55, -L / 2 + 1.1, 2.4, 1.9, 2.2, 0x4a5638); B(SOL, 0, 2.0, -L / 2 + 0.02, 2.1, 0.7, 0.05, 0x26303a); B(SOL, 0, 1.0, 1.0, 2.4, 0.5, 5.0, 0x3e4a30); B(SOL, 0, 2.15, 1.0, 2.46, 1.9, 5.0, 0x5a6442); B(SOL, 0, 3.12, 1.0, 2.0, 0.1, 5.0, 0x4e5838); for (let k = 0; k < 4; k++) B(MET, 0, 2.15, -1.2 + k * 1.5, 2.5, 1.94, 0.06, 0x3a4230); B(FLAT, 1.25, 2.3, 1.0, 0.02, 0.5, 0.5, 0xe8e8e0); B(WOD, 0.5, 0.95, 4.0, 0.9, 0.5, 0.7, 0x5a6a3a); }
+      const nw = kind === 'bus' ? [-L / 2 + 2, L / 2 - 2.4] : [-L / 2 + 1.1, 1.2, 2.6]; for (const wz of nw) for (const sx of [-1, 1]) B(MET, sx * 1.15, 0.5, wz, 0.5, 0.3, 0.5, 0x141416, geoCyl, Math.PI / 2);
+      for (let t = -L / 2 + 1.2; t <= L / 2 - 1.1; t += 1.6) addCircle(x + Math.sin(ang) * t, z + Math.cos(ang) * t, 1.35, Y, Y + 3); };
+    bigV(XS[3] + 2, -150, 0.5, 'bus'); bigV(XS[3] - 3, 40, -0.25, 'bus'); bigV(-100, ZS[2] + 1, Math.PI / 2 + 0.3, 'bus'); bigV(95, ZS[3] - 1, Math.PI / 2 - 0.4, 'bus');
+    bigV(XS[3] + 3.5, -95, 0.1, 'truck'); bigV(-35, ZS[1] - 1.5, Math.PI / 2 + 0.15, 'truck'); bigV(XS[1] + 1, 95, 0.2, 'truck'); bigV(60, ZS[4] + 1, Math.PI / 2, 'truck');
+    // maletas, carritos, conos y cajas tirados en la huida
+    for (let k = 0; k < 190; k++) { const side = rand() < 0.6, [x, z] = side ? sidewalk() : onStreet(), r = rand();
+      if (r < 0.4) rbx(SOL, x, Y + 0.3, z, R(0.4, 0.7), R(0.35, 0.6), R(0.2, 0.3), pick([0x3a4a6a, 0x7a2a2a, 0x2a2a2e, 0x6a5a3a, 0x4a6a4a, 0xc8a030]), rand() < 0.5 ? Math.PI / 2 : 0, R(0, 6), 0);
+      else if (r < 0.6) { rbx(FLAT, x, Y + 0.3, z, 0.16, 0.5, 0.16, 0xe8641a, 0, 0, rand() < 0.4 ? Math.PI / 2 : 0, geoCyl); FLAT.box(x, Y + 0.09, z, 0.4, 0.04, 0.4, 0xe8641a); }
+      else if (r < 0.78) { const a = R(0, 6); rbx(MET, x, Y + 0.62, z, 0.55, 0.5, 0.9, 0x9a9ea4, 0, a, rand() < 0.35 ? Math.PI / 2 : 0); rbx(MET, x, Y + 0.25, z, 0.5, 0.05, 0.85, 0x6a6e74, 0, a, 0); }
+      else if (r < 0.9) { for (let j = 0; j < RI(1, 3); j++) rbx(WOD, x + R(-0.4, 0.4), Y + 0.25 + (j === 2 ? 0.5 : 0), z + R(-0.4, 0.4), 0.5, 0.5, 0.5, pick([0xb8936a, 0xa8835a, 0xc8a878]), 0, R(0, 3), 0); }
+      else { rbx(MET, x, Y + 0.55, z, 0.04, 1.0, 0.55, 0x2a2a30, R(-0.2, 0.2), R(0, 6), Math.PI / 2 - 0.2); for (const w of [-0.5, 0.5]) rbx(MET, x + w, Y + 0.33, z, 0.33, 0.04, 0.33, 0x18181a, Math.PI / 2, R(0, 0.3), 0, geoCyl); } }
+    // ceniza y polvo flotando alrededor del jugador
+    { const N = 420, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3), sd = []; for (let i = 0; i < N; i++) { pa[i * 3] = R(-18, 18); pa[i * 3 + 1] = R(0, 9); pa[i * 3 + 2] = R(-18, 18); sd.push(R(0, 6.28)); } pg.setAttribute('position', new THREE.BufferAttribute(pa, 3));
+      const pm = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xc8c0b0, size: 0.028, transparent: true, opacity: 0.45, depthWrite: false, sizeAttenuation: true })); pm.frustumCulled = false; scene.add(pm); CITY.ash = pm;
+      CITY.anim.push((t, dt) => { const cp = camera.position; for (let i = 0; i < N; i++) { let x = pa[i * 3] + (Math.sin(t * 0.4 + sd[i]) * 0.25 + 0.35) * dt, y = pa[i * 3 + 1] - (0.12 + (i % 5) * 0.03) * dt, z = pa[i * 3 + 2] + Math.cos(t * 0.3 + sd[i]) * 0.25 * dt; if (x > 18) x -= 36; if (y < 0) y += 9; if (z > 18) z -= 36; if (z < -18) z += 36; pa[i * 3] = x; pa[i * 3 + 1] = y; pa[i * 3 + 2] = z; } pg.attributes.position.needsUpdate = true; pm.position.set(cp.x, cp.y - 3, cp.z); }); }
   }
   // ---------- mallas finales ----------
   const DECMAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMapIntensity: 0.15, polygonOffset: true, polygonOffsetFactor: -2 });
